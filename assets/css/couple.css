@@ -228,7 +228,10 @@
    本页是「定高的一屏」，用 :has() 把那层预留直接从 .view 上摘掉，
    否则本页只能拿到 100% − 86px，等于白丢 86px 可用高度。
    不支持 :has() 的浏览器只是少这 86px，版式不会坏。 */
-.view:has(> .cp-onboard--fit) { padding-bottom: 0; }
+/* --mode 只用在「选模式」那一屏（定高铺满），同样要摘掉这层预留，
+   否则 100% 里已经扣过 tab-h，--mode 又减一次 tab-h，凭空少 60px。 */
+.view:has(> .cp-onboard--fit),
+.view:has(> .cp-onboard--mode) { padding-bottom: 0; }
 
 .cp-onboard--mode,
 .cp-onboard--fit {

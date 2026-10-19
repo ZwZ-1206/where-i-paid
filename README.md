@@ -431,11 +431,11 @@ assets/  （整个目录）
 
 ### 源码与安装包（GitHub）
 
-仓库地址：**<https://github.com/ZwZ-1206/whereipaid>**
+仓库地址：**<https://github.com/ZwZ-1206/where-i-paid>**
 
 | 想干什么 | 去哪儿 |
 | --- | --- |
-| 直接装到安卓手机 | [Releases](https://github.com/ZwZ-1206/whereipaid/releases) → 下 `whereipaid-v1.18.4.apk` |
+| 直接装到安卓手机 | [Releases](https://github.com/ZwZ-1206/where-i-paid/releases) → 下 `whereipaid-v1.18.5.apk` |
 | 看源码 / 提 issue | 仓库根目录，`assets/js/` 是全部前端逻辑，`_test/` 是自动化测试 |
 | 只想要网页版 | clone 下来双击 `index.html`，或跑 `node build-dist.js` 发布 `dist/` |
 

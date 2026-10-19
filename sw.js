@@ -5,7 +5,7 @@
  *       已改为网络优先。 */
 'use strict';
 
-const CACHE = 'jizhang-v1.18.4';
+const CACHE = 'jizhang-v1.18.5';
 
 const ASSETS = [
   './',

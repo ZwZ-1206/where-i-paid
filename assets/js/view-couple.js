@@ -248,7 +248,12 @@
     else if (hasBook && !c.enabled) body = stepReopen(c);
     else body = stepIntro(canResume ? c : null);
 
-    root.innerHTML = `<div class="cp-onboard cp-onboard--mode">${body}</div>`;
+    // 只有「选模式」那一屏用定高铺满的 --mode（两张卡片要平分一屏）。
+    // 介绍 / 协议 / 资料页内容高度不固定，必须用基础 .cp-onboard：
+    // 它是 min-height:100% 的纵向 flex，内容多了能滚，底部按钮靠
+    // margin-top:auto 贴底。套上 --mode 会被 overflow:hidden 裁掉按钮。
+    const cls = step === 'mode' ? 'cp-onboard cp-onboard--mode' : 'cp-onboard';
+    root.innerHTML = `<div class="${cls}">${body}</div>`;
     bindOnboarding(root);
   }
 
@@ -334,15 +339,16 @@
           </div>
         </div>
         <div class="cp-note">
-          现在没有任何服务器，所以也没有加密这一步——因为根本没东西传出去。
+          只有情侣这一本账会在配对后加密同步；其他账本、攒钱目标、所有设置一个字节都不传。
         </div>
       </div>
 
       <div class="cp-card cp-card--soft">
-        <div class="cp-card-title">先说清楚一件没做完的事</div>
+        <div class="cp-card-title">两个人怎么共用一本账</div>
         <div class="cp-desc">
-          两个人共享一本账要靠联网同步，这部分还没做，所以现在是<b>各记各的</b>，
-          TA 记的你看不到。换手机、清浏览器数据会丢，重要的记得先在设置里导出备份。
+          配好对之后，两台手机自动同步这一本（端到端加密，服务器只存密文）。
+          没配对时就是<b>各记各的</b>，TA 记的你看不到。
+          换手机、清浏览器数据会丢，重要的记得先在设置里导出备份。
         </div>
       </div>
 

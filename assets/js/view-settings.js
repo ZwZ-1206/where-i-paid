@@ -1566,12 +1566,14 @@
   // ------------------------------------------------------------
   function verLabel(v) { return v ? v : '未知'; }
 
-  /** 把当前版本号填到「检查更新」那一行（离线也能读，读的是本地缓存名） */
+  /** 把当前版本号填到「检查更新」那一行（APK 读包内 sw.js，网页读缓存名） */
   async function syncVersion(root) {
     const el = root.querySelector('[data-ver]');
-    if (!el || !global.App || !App.currentVersion) return;
+    if (!el || !global.App) return;
     try {
-      const v = await App.currentVersion();
+      let v = '';
+      if (App.isApk && App.isApk() && App.bundledVersion) v = await App.bundledVersion();
+      else if (App.currentVersion) v = await App.currentVersion();
       if (v) el.textContent = v;
     } catch (e) { /* 忽略 */ }
   }
@@ -1592,14 +1594,30 @@
     if (verEl && r.local) verEl.textContent = r.local;
     if (!r.hasUpdate) {
       setState('已是最新');
-      U.toast(`已是最新版本 ${verLabel(r.remote)}`, 'success');
+      U.toast(`已是最新版本 ${verLabel(r.remote || r.local)}`, 'success');
       return;
     }
     setState('有新版本');
+
+    // APK：壳没法自己换安装包，只能把用户送去 GitHub Releases 下新包
+    if (r.apk) {
+      const go = await UI.confirm({
+        title: `发现新版本 ${verLabel(r.remote)}`,
+        desc: `你现在装的是 ${verLabel(r.local)}。<br/><br/>` +
+          '安卓版的新包要重新下载安装：点「去 GitHub 下载」后用浏览器打开，' +
+          '下载 <b>' + U.escapeHtml('whereipaid-v' + String(r.remote).replace(/^v/i, '') + '.apk') + '</b> 覆盖安装即可。' +
+          '<br/><span style="color:var(--text-3)">覆盖安装不会动你的账目；保险起见可以先「导出备份」。</span>',
+        okText: '去 GitHub 下载', cancelText: '等会儿',
+      });
+      if (go) location.href = App.GITHUB_RELEASES;
+      return;
+    }
+
     const yes = await UI.confirm({
       title: `发现新版本 ${verLabel(r.remote)}`,
-      desc: `你现在用的是 ${verLabel(r.local)}。更新只换程序代码，<b>你的账目存在本机浏览器里，不会动</b>。" +
-            "<br/><br/>更新时页面会自己刷新一下。<br/><span style=\"color:var(--text-3)\">保险起见，可以先去「导出备份」存一份。</span>`,
+      desc: `你现在用的是 ${verLabel(r.local)}。更新只换程序代码，<b>你的账目存在本机浏览器里，不会动</b>。` +
+        '<br/><br/>更新时页面会自己刷新一下。' +
+        '<br/><span style="color:var(--text-3)">保险起见，可以先去「导出备份」存一份。</span>',
       okText: '立即更新', cancelText: '等会儿',
     });
     if (yes && App.applyUpdate) App.applyUpdate();

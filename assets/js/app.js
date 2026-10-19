@@ -352,8 +352,27 @@
 
   // ------------------------------------------------------------
   // 版本与更新
-  // 思路：sw.js 里的 CACHE 名就是版本号，既能离线读，也能联网比。
+  //
+  // 两种运行环境，两套判据，不能混：
+  //
+  //   APK（页面跑在 appassets 虚拟域名里）：sw.js 和网页一起打在包里，
+  //     "联网比版本"比的是包内自己，永远相等。所以 APK 必须去 GitHub
+  //     Releases 问最新 tag；更新动作是让用户去下新 APK，不是刷新页面。
+  //
+  //   网页 / PWA：sw.js 来自服务器，本地版本只能从 SW 缓存读。
+  //     **缓存读不到时绝不能判定有更新** —— 否则 remote 有值、local 为空，
+  //     `remote !== local` 恒成立，就会一直提示"有新版本"，点更新也只是
+  //     重载、缓存依旧空，形成死循环。
   // ------------------------------------------------------------
+
+  /** 仓库地址：APK 用户的更新出口 */
+  const GITHUB_RELEASES = 'https://github.com/ZwZ-1206/where-i-paid/releases/latest';
+
+  /** 是不是装在 APK 壳里 */
+  function isApk() {
+    try { return location.hostname === 'appassets.androidplatform.net'; } catch (e) { return false; }
+  }
+
   /** 当前实际在用的版本（读本地缓存名，离线也能读到） */
   async function currentVersion() {
     try {
@@ -362,6 +381,18 @@
       if (mine.length) return mine[0].replace('jizhang-', '');
     } catch (e) { /* 忽略 */ }
     return '';
+  }
+
+  /** 包内版本：APK 里 sw.js 就是打包时那份，直接读它，不依赖缓存 */
+  async function bundledVersion() {
+    try {
+      const res = await fetch('sw.js', { cache: 'no-store' });
+      if (!res.ok) return '';
+      const m = /CACHE\s*=\s*['"]([^'"]+)['"]/.exec(await res.text());
+      return m ? m[1].replace('jizhang-', '') : '';
+    } catch (e) {
+      return '';
+    }
   }
 
   /** 服务器上最新的版本（拉一次 sw.js 读 CACHE） */
@@ -374,21 +405,73 @@
     return m[1].replace('jizhang-', '');
   }
 
+  /** GitHub 上最新 Release 的 tag（APK 唯一的更新渠道） */
+  async function githubVersion() {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
+    try {
+      const res = await fetch('https://api.github.com/repos/ZwZ-1206/where-i-paid/releases/latest', {
+        cache: 'no-store',
+        signal: ctl ? ctl.signal : undefined,
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      return String(j.tag_name || '').replace(/^v/i, '');
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /** 版本号拆成数字数组，'1.18.4' → [1,18,4] */
+  function verParts(v) {
+    return String(v || '').replace(/^v/i, '').split('.').map((n) => parseInt(n, 10) || 0);
+  }
+
+  /** a 是否真的比 b 新（不是"不相等"，是"更大"） */
+  function isNewer(a, b) {
+    const x = verParts(a);
+    const y = verParts(b);
+    const len = Math.max(x.length, y.length);
+    for (let i = 0; i < len; i++) {
+      const p = x[i] || 0;
+      const q = y[i] || 0;
+      if (p !== q) return p > q;
+    }
+    return false;
+  }
+
   /**
    * 检查更新
-   * @returns {Promise<{ok, local?, remote?, hasUpdate?, offline?, reason?}>}
+   * @returns {Promise<{ok, local?, remote?, hasUpdate?, apk?, reason?}>}
    */
   async function checkUpdate() {
+    // ---------- APK：包内版本 vs GitHub 最新 Release ----------
+    if (isApk()) {
+      const local = await bundledVersion();
+      let remote = '';
+      try {
+        remote = await githubVersion();
+      } catch (e) {
+        return { ok: false, reason: 'offline', local, apk: true };
+      }
+      if (!local || !remote) return { ok: true, local, remote, hasUpdate: false, apk: true };
+      return { ok: true, local, remote, hasUpdate: isNewer(remote, local), apk: true };
+    }
+
+    // ---------- 网页 / PWA ----------
     if (!('serviceWorker' in navigator)) return { ok: false, reason: 'unsupported' };
-    let local = '';
-    try { local = await currentVersion(); } catch (e) { local = ''; }
+    const local = await currentVersion();
+    // 缓存还没建立（首次启动 / SW 未激活）→ 无从比较，直接判定"无更新"。
+    // 这一条是"永远提示有更新"的根因修复，别删。
+    if (!local) return { ok: true, local: '', hasUpdate: false, reason: 'no-cache' };
+
     let remote = '';
     try {
       remote = await remoteVersion();
     } catch (e) {
       return { ok: false, reason: 'offline', local, message: e.message };
     }
-    const hasUpdate = !!remote && remote !== local;
+    const hasUpdate = !!remote && isNewer(remote, local);
     if (hasUpdate) {
       try {
         const reg = await navigator.serviceWorker.getRegistration();
@@ -417,8 +500,8 @@
   // ------------------------------------------------------------
   // 启动时自动核对版本
   // ------------------------------------------------------------
-  /** 底部一条「有新版本」提示，点一下就能更新 */
-  function showUpdateBar(remote, local) {
+  /** 底部一条「有新版本」提示；APK 是去 GitHub 下新包，网页是一键刷新 */
+  function showUpdateBar(remote, local, apk) {
     const host = $('#toast-host') || (() => {
       const h = U.el('div', { id: 'toast-host', class: 'toast-host' });
       document.body.appendChild(h);
@@ -431,7 +514,7 @@
       '<span class="ub-ic">⬆️</span>' +
       '<span class="ub-txt">发现新版本 <b>' + U.escapeHtml(remote) + '</b>' +
       (local ? '<span class="ub-from">当前 ' + U.escapeHtml(local) + '</span>' : '') + '</span>' +
-      '<button class="ub-go" type="button">更新</button>' +
+      '<button class="ub-go" type="button">' + (apk ? '去 GitHub 下载' : '更新') + '</button>' +
       '<button class="ub-later" type="button">以后</button>';
     host.appendChild(bar);
     requestAnimationFrame(() => bar.classList.add('in'));
@@ -442,6 +525,12 @@
     };
     bar.querySelector('.ub-go').addEventListener('click', () => {
       close();
+      if (apk) {
+        // 壳里没法自己替换安装包：交给系统浏览器打开 Releases 页，
+        // WebViewClient.shouldOverrideUrlLoading 会把站外链接转出去。
+        location.href = GITHUB_RELEASES;
+        return;
+      }
       U.toast('正在更新…', 'info');
       applyUpdate();
     });
@@ -506,12 +595,13 @@
     let r;
     try { r = await checkUpdate(); } catch (e) { return; }
     if (!r || !r.ok || !r.hasUpdate) return;
-    showUpdateBar(r.remote, r.local);
+    showUpdateBar(r.remote, r.local, !!r.apk);
   }
 
   global.App = {
     boot, go, refresh, download, applyTheme, refreshTopbar: renderTopbar,
-    checkUpdate, applyUpdate, autoCheckUpdate, currentVersion, remoteVersion,
+    checkUpdate, applyUpdate, autoCheckUpdate, currentVersion, bundledVersion, remoteVersion,
+    isApk, GITHUB_RELEASES,
     isTempOrigin, checkTempOrigin, paintCoupleTab,
     get current() { return current; },
   };
