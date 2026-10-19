@@ -225,18 +225,18 @@
         <article class="pcard" data-platform="android">
           <span class="pcard__badge" hidden>推荐给你</span>
           <h3>Android / 鸿蒙</h3>
-          <p class="pcard__sub">① 下载离线包</p>
-          <a class="btn btn--primary btn--wide" id="zip-link" href="download/huanaer-1.18.5.zip" download>
-            下载 zip · <span data-build="size">551 KB</span>
+          <p class="pcard__sub">① 装 APK（推荐）</p>
+          <a class="btn btn--primary btn--wide" href="https://github.com/ZwZ-1206/where-i-paid/releases/latest" target="_blank" rel="noopener">
+            从 GitHub 下载 APK
           </a>
-          <p class="pcard__cost">解压后是一个网页，能记账、能看报表，但它不是安装包：没有离线缓存，桌面图标只是一个书签，升级要重新下载。</p>
-          <p class="pcard__cost">想要真正的安装包（离线可用、有桌面图标）？<a href="https://github.com/ZwZ-1206/where-i-paid/releases/latest" target="_blank" rel="noopener"><strong>从 GitHub Releases 下载 APK ↗</strong></a></p>
+          <p class="pcard__cost">装上就是真正的 App：断网能用、桌面有图标、数据存在应用里，换版本也能覆盖升级。</p>
+          <p class="pcard__cost">或者 <a id="zip-link" href="download/huanaer-1.18.5.zip" download>下载网页离线包（<span data-build="size">551 KB</span>）</a> —— 只适合在电脑上用。</p>
           <details>
-            <summary>解压后怎么打开</summary>
+            <summary>装不上 / 离线包怎么打开</summary>
             <ol class="steps">
-              <li>下载 huanaer-1.18.5.zip（<span data-build="size">551 KB</span>）</li>
-              <li>打开手机自带的「文件管理」，点这个 zip → 解压</li>
-              <li>点解压出来的 index.html → 选 Chrome 打开</li>
+              <li>浏览器提示「文件可能有害」时点<b>仍要下载</b>；安装时允许「未知来源」</li>
+              <li>华为 / 鸿蒙要先退出<b>纯净模式</b>，否则装不上</li>
+              <li>离线包在电脑上解压后双击 index.html 即可。<b>手机上用文件管理器点开 index.html 是打不开的</b>——那里拿到的是 content:// 地址，页面里的脚本加载不了</li>
             </ol>
           </details>
         </article>

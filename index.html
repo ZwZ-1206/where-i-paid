@@ -109,5 +109,29 @@
   <script src="assets/js/view-sync.js?v=1.18.5"></script>
   <script src="assets/js/view-couple.js?v=1.18.5"></script>
   <script src="assets/js/app.js?v=1.18.5"></script>
+
+  <!-- 启动兜底：资源没加载上来时，别永远停在「正在准备你的账本…」。
+       典型场景：安卓用文件管理器直接点开 index.html，地址是 content://，
+       页面里的脚本按相对路径根本加载不到，App 永远不会启动。 -->
+  <script>
+  (function () {
+    var tip = document.querySelector('.splash-tip');
+    function say(html) {
+      if (!tip) return;
+      tip.innerHTML = html;
+      tip.style.lineHeight = '1.7';
+      tip.style.padding = '0 26px';
+    }
+    var proto = location.protocol;
+    if (proto !== 'http:' && proto !== 'https:' && proto !== 'file:') {
+      say('这个打开方式打不开（' + proto + '）。<br>请装安卓版，或者把整个文件夹放到网页服务器上访问。');
+      return;
+    }
+    setTimeout(function () {
+      if (window.App) return;
+      say('没能启动。<br>如果是在手机上用文件管理器点开的 index.html，这样是不行的，请改用安卓安装包。');
+    }, 5000);
+  })();
+  </script>
 </body>
 </html>
