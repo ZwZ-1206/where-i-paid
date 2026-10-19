@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 与 assets/css/app.css 的主色变量保持一致 -->
+    <color name="brand">#4F7CFF</color>
+    <color name="brand_2">#7C5CFF</color>
+    <!-- 与页面底色一致，用于启动背景和状态栏，避免白闪与色差 -->
+    <color name="bg">#F4F6FB</color>
+    <color name="ic_launcher_background_start">#5B8CFF</color>
+    <color name="ic_launcher_background_end">#A56CFF</color>
+</resources>

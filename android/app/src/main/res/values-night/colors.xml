@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 跟随系统深色模式，与网页深色模式的底色一致 -->
+    <color name="bg">#0C0F15</color>
+</resources>

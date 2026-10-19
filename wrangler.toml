@@ -1,0 +1,8 @@
+name = "jizhang"
+compatibility_date = "2025-06-01"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jizhang-couple"
+database_id = "e5644e25-ac90-4263-95e9-1cbddaa34e24"

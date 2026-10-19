@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WhereIPaid" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/brand</item>
+        <item name="colorAccent">@color/brand</item>
+        <!-- 冷启动背景 = 页面底色，避免白闪 -->
+        <item name="android:windowBackground">@color/bg</item>
+        <!-- 状态栏与页面同色，视觉上是连着的 -->
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

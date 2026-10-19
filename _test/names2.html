@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>双层命名</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #EDF0F7; padding: 26px 24px 20px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  .row { display: flex; gap: 26px; justify-content: center; align-items: flex-start; }
+  .cap { text-align: center; margin-bottom: 11px; }
+  .cap b { font-size: 13.5px; font-weight: 700; color: #2B3348; }
+  .cap span { display: block; font-size: 11px; color: #8A93A6; margin-top: 3px; }
+
+  /* ── 左：层级 ── */
+  .layers { width: 300px; }
+  .layer { background: #fff; border: 1px solid #E6EAF4; border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
+  .layer.hi { border-color: #C9D8FF; box-shadow: 0 6px 18px rgba(79,124,255,.10); }
+  .lvl { font-size: 9.5px; font-weight: 700; color: #A9B0C0; letter-spacing: .08em; margin-bottom: 3px; }
+  .lvln { font-size: 17px; font-weight: 800; color: #1D2437; }
+  .lvln em { font-style: normal; font-size: 10.5px; font-weight: 700; color: #7C5CFF; background: #F3EFFF; border-radius: 5px; padding: 1px 5px; margin-left: 6px; vertical-align: 3px; }
+  .lvld { font-size: 10.5px; color: #7C8598; margin-top: 3px; line-height: 1.5; }
+  .arrow { text-align: center; font-size: 10px; color: #C2C8D6; margin: -2px 0 6px; }
+
+  /* ── 手机 ── */
+  .phone { width: 358px; background: #F7F8FC; border: 1px solid #E3E7F0; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 28px rgba(20,30,60,.09); }
+  .topbar { height: 52px; display: flex; align-items: center; padding: 0 14px; background: #FCFDFF; border-bottom: 1px solid #EDF0F6; gap: 8px; }
+  .tbt { font-size: 16.5px; font-weight: 800; color: #1D2437; }
+  .tbs { font-size: 10.5px; color: #98A1B4; margin-left: 2px; }
+  .body { height: 150px; padding: 13px 14px; background: linear-gradient(180deg,#FCFDFF,#F3F5FB); }
+  .sk { border-radius: 6px; background: #DFE5F0; height: 10px; }
+  .sk.b { background: #E8ECF5; margin-top: 9px; }
+  .tabbar { height: 58px; display: flex; align-items: center; background: rgba(255,255,255,.96); border-top: 1px solid #E6EAF4; }
+  .tab { flex: 1; height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #98A1B4; }
+  .tab.active { color: #4F7CFF; }
+  .tab--couple { color: #7C5CFF; }
+  .tab-ic { display: grid; place-items: center; height: 21px; }
+  .tab-label { font-size: 10px; font-weight: 700; letter-spacing: .01em; }
+  .tab--main { flex: 1.06; }
+  .tab-fab { width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center; background: linear-gradient(135deg,#5B8CFF,#7C5CFF 55%,#A56CFF); color: #fff; box-shadow: 0 7px 18px rgba(79,124,255,.40); margin-top: -20px; }
+
+  /* ── 桌面图标 ── */
+  .home { width: 358px; padding: 20px 0 22px; }
+  .appline { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .appic { width: 78px; height: 78px; border-radius: 19px; display: grid; place-items: center;
+           background: linear-gradient(140deg,#5B8CFF 0%,#7C5CFF 55%,#A56CFF 100%);
+           box-shadow: 0 10px 26px rgba(93,110,255,.34); }
+  .appname { font-size: 15px; font-weight: 800; color: #1D2437; letter-spacing: .02em; }
+  .appslogan { font-size: 11px; color: #8A93A6; }
+  .pillrow { display: flex; gap: 7px; justify-content: center; margin-top: 13px; flex-wrap: wrap; }
+  .pill { font-size: 10.5px; color: #6C7488; background: #fff; border: 1px solid #E6EAF4; border-radius: 8px; padding: 4px 9px; font-weight: 600; }
+  .pill.hi { background: #F3EFFF; border-color: #DCD2FF; color: #7C5CFF; }
+  .foot { text-align: center; font-size: 11.5px; color: #8A93A6; margin-top: 16px; line-height: 1.7; }
+  .foot b { color: #2B3348; } .foot em { font-style: normal; color: #7C5CFF; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="row">
+
+  <!-- 层级说明 -->
+  <div>
+    <div class="cap"><b>三层各司其职</b><span>宽的名字管全 App，窄的名字管一个模块</span></div>
+    <div class="layers">
+      <div class="layer hi">
+        <div class="lvl">L1 · 主品牌 = App 名</div>
+        <div class="lvln">笔笔 <em>宽</em></div>
+        <div class="lvld">读起来就是「一笔账」。单人记也成立，两个人记也成立</div>
+      </div>
+      <div class="arrow">↓ 进入情侣模式</div>
+      <div class="layer hi">
+        <div class="lvl">L2 · 子品牌 = 情侣模块名</div>
+        <div class="lvln">一块儿 <em>窄</em></div>
+        <div class="lvld">双关在这儿才成立——一块儿过日子，一块儿攒钱</div>
+      </div>
+      <div class="arrow">↓ 页面内</div>
+      <div class="layer">
+        <div class="lvl">L3 · 功能名</div>
+        <div class="lvln" style="font-size:14px">我们的小金库 · 爱的账单</div>
+        <div class="lvld">沿用已有命名，不再造新词</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌面 -->
+  <div>
+    <div class="cap"><b>手机桌面</b><span>用户看到的第一个名字</span></div>
+    <div class="phone">
+      <div class="home">
+        <div class="appline">
+          <div class="appic">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <path d="M20 6.5l8.8 11.6-6 13.9h-5.6l-6-13.9z" fill="#fff"/>
+              <circle cx="20" cy="18.5" r="2.5" fill="#7C5CFF"/>
+              <path d="M20 21v8" stroke="#7C5CFF" stroke-width="1.9" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="appname">笔笔</div>
+          <div class="appslogan">记账不心累</div>
+        </div>
+        <div class="pillrow">
+          <span class="pill">一个账本</span>
+          <span class="pill">自定义周期</span>
+          <span class="pill">预算提醒</span>
+          <span class="pill">月度总结</span>
+          <span class="pill">攒钱目标</span>
+          <span class="pill hi">♡ 一块儿</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手机内 -->
+  <div>
+    <div class="cap"><b>App 内部</b><span>底栏第 5 格直接叫「一块儿」</span></div>
+    <div class="phone">
+      <div class="topbar"><span class="tbt">一块儿</span><span class="tbs">和 TA 在一起的第 214 天</span></div>
+      <div class="body">
+        <div class="sk" style="width:42%"></div>
+        <div class="sk b" style="width:74%"></div>
+        <div class="sk b" style="width:58%"></div>
+        <div class="sk b" style="width:66%"></div>
+        <div class="sk b" style="width:35%"></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="tab-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg></span><span class="tab-label">明细</span></div>
+        <div class="tab"><span class="tab-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3a9 9 0 109 9h-9V3z"/><path d="M14 2.5A9 9 0 0121.5 10H14V2.5z"/></svg></span><span class="tab-label">总结</span></div>
+        <div class="tab tab--main"><span class="tab-fab"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="tab-label">记一笔</span></div>
+        <div class="tab"><span class="tab-ic"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span><span class="tab-label">目标</span></div>
+        <div class="tab tab--couple"><span class="tab-ic"><svg width="21" height="21" viewBox="0 0 24 24"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B8CFF"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#A56CFF"/></linearGradient></defs><path d="M12 20.4c-.3 0-.6-.1-.8-.3C7.7 17 3.5 13.7 3.5 9.9c0-2.7 2.1-4.7 4.7-4.7 1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2 2.6 0 4.7 2 4.7 4.7 0 3.8-4.2 7.1-7.7 10.2-.2.2-.5.3-.8.3z" fill="url(#hg)"/></svg></span><span class="tab-label">一块儿</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="foot">
+  「一块儿」不当地基，当<em>二层</em> —— 它没有变弱，反而第一次名副其实<br>
+  <b>不用情侣账本的人，一辈子都看不到这三个字</b>
+</div>
+</body>
+</html>

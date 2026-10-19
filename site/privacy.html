@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>隐私说明 · 花哪儿了</title>
+<meta name="description" content="花哪儿了怎么处理你的数据：账目只存在你手机的浏览器里，没有账号、没有埋点。识图与双人同步的边界也写在这里。" />
+<link rel="canonical" href="https://where-i-paid.pages.dev/privacy.html" />
+<meta name="theme-color" content="#F4F6FB" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0C0F15" media="(prefers-color-scheme: dark)" />
+<link rel="icon" href="assets/icons/favicon-32.png" sizes="32x32" />
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+<link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar__in">
+    <a class="brand" href="index.html">
+      <img src="assets/icons/icon-192.png" alt="" width="26" height="26" />
+      <span>花哪儿了</span>
+    </a>
+    <nav class="nav" aria-label="主导航">
+      <a href="index.html#features">功能</a>
+      <a href="index.html#couple">情侣</a>
+      <a href="index.html#faq">常见问题</a>
+      <a class="btn btn--primary btn--sm" href="index.html#install">安装</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <article class="doc">
+    <h1>隐私说明</h1>
+    <p class="doc__meta">适用于「花哪儿了」网页版与离线包 · 当前版本 <span data-build="version">v1.18.4</span></p>
+
+    <h2>一句话</h2>
+    <p><b>个人账目</b>只存在你这台手机的浏览器里，记账部分没有服务器，也就没有能力拿走它。<br>唯一会出门的是两块：识图，和情侣账本的端到端加密同步——下面分别写清。</p>
+
+    <h2>我们收集什么</h2>
+    <p><b>不收集。</b>没有账号、没有手机号、没有邮箱、没有验证码。App 里没有埋点，没有第三方统计脚本，没有广告 SDK。</p>
+
+    <h2>你的账存在哪</h2>
+    <ul>
+      <li>存在你手机浏览器的本地存储（localStorage，键名 <b>jizhang.v1</b>）。</li>
+      <li><b>个人账目</b>不上传、不备份到云端、不同步到任何账号。</li>
+      <li>情侣账本是例外：只有这本账（账目、它的基金、它的资料）会端到端加密同步，见下面「双人同步」。</li>
+      <li>导出的备份文件由你自己保管，它落在你选择的那个文件夹里。</li>
+    </ul>
+
+    <h2>怎么删掉</h2>
+    <ul>
+      <li>单笔：在明细里长按或点进那一笔删除。</li>
+      <li>全部：清除浏览器数据，或删掉主屏幕上的图标（安卓还需要清一次站点数据）。</li>
+      <li>清除后不可恢复——所以请定期用「设置 → 导出备份」留一份。</li>
+    </ul>
+
+    <h2>识图（会联网）</h2>
+    <p>分两条路，界线不一样，这里说清楚：</p>
+    <ul>
+      <li><b>本地 OCR：</b>识别在你手机里完成，图片不出设备。但第一次使用需要联网下载识别包（约 20 MB，来自公共 CDN），之后可离线。</li>
+      <li><b>AI 识图：</b>需要你自己在设置里填一家模型服务的 Key。<b>你主动选择的那张截图会发送给这家服务商</b>，由它返回金额和分类。我们不中转、不保存、也看不到你的 Key 之外的任何东西。</li>
+    </ul>
+    <p>不想让截图出门，就别开 AI 识图，只用本地 OCR 或手动记。</p>
+
+    <h2>双人同步（已上线，需要你主动配对）</h2>
+    <p><b>不配对就不会同步。</b>情侣账本默认只在本机，你在情侣页点「发起配对」并和对方的手机连上之后，才会开始同步。</p>
+    <p><b>同步什么：</b>只有情侣账本——这本的账目、它的基金、它的资料。个人账本、攒钱目标、设置、其他账本一个字节都不传。</p>
+    <p><b>怎么加密：</b>密钥由那串 43 位配对码派生，只存在于你们两台手机上。密钥不落盘、不上传，服务器（作者自己的 Cloudflare，机房在香港）只存密文、房间号和时间戳，读不出金额和备注。</p>
+    <p><b>配对码就是钥匙：</b>谁拿到它，谁就能解开这本账。别发到群里。它也不会出现在任何备份文件里。</p>
+    <p><b>清空云端：</b>「解除连接」只会让这台手机停止同步，云端数据还在对方那边可用。要连云端一起清掉，目前需要作者手动删（一朵房间里的一行记录），可以在应用内反馈时说明。</p>
+
+    <h2>官网本身</h2>
+    <ul>
+      <li>本站是静态页面，托管在 Cloudflare Pages。</li>
+      <li>不使用 cookie，不加载第三方脚本，不做访问统计。</li>
+      <li>和所有网站一样，服务器会记录常规访问日志（IP、浏览器标识、时间），用于防滥用；我们不拿它做画像。</li>
+    </ul>
+
+    <h2>改动怎么通知</h2>
+    <p>这份说明有实质变化时，会在应用内「设置 → 关于」和<a href="changelog.html">更新日志</a>里写清楚改了什么，不会悄悄改。</p>
+
+    <p class="doc__back"><a href="index.html">← 回首页</a></p>
+  </article>
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p class="foot__meta">© 2026 花哪儿了 · 托管于 Cloudflare Pages · <span data-build="version">v1.18.4</span></p>
+  </div>
+</footer>
+
+</body>
+</html>

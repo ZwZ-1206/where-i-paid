@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>入口方案 D 对比</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #EDF0F7; padding: 24px 22px 26px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .row { display: flex; gap: 22px; justify-content: center; align-items: flex-start; }
+  .col { width: 390px; }
+  .cap { text-align: center; margin-bottom: 9px; }
+  .cap b { font-size: 14px; font-weight: 700; color: #2B3348; }
+  .cap span { display: block; font-size: 11.5px; color: #8A93A6; margin-top: 3px; }
+  .cap em { font-style: normal; color: #7C5CFF; font-weight: 700; }
+  .cap i { font-style: normal; color: #E2536B; font-weight: 700; }
+  .phone { width: 390px; border-radius: 22px; overflow: hidden; background: #F7F8FC; border: 1px solid #E3E7F0; box-shadow: 0 10px 30px rgba(20,30,60,.09); }
+
+  .topbar { height: 52px; display: flex; align-items: center; padding: 0 12px 0 16px; background: #FCFDFF; border-bottom: 1px solid #EDF0F6; }
+  .tbtitle { font-size: 17px; font-weight: 700; color: #1D2437; letter-spacing: .01em; flex: 1; }
+  .tbicons { display: flex; gap: 6px; }
+  .tbbtn { width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center; background: #F1F4FA; color: #7B8499; position: relative; }
+  .dot { position: absolute; top: -2px; right: -2px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: #FF5A5F; color: #fff; font-size: 9px; font-weight: 700; display: grid; place-items: center; }
+
+  .body { height: 236px; padding: 14px 16px; background: linear-gradient(180deg,#FCFDFF,#F3F5FB); }
+  .sk { border-radius: 6px; background: #DFE5F0; }
+  .sk.a { height: 10px; width: 40%; }
+  .sk.b { height: 10px; width: 68%; background: #E8ECF5; margin-top: 9px; }
+  .sk.c { height: 10px; width: 54%; background: #E8ECF5; margin-top: 9px; }
+  .sk.d { height: 10px; width: 33%; background: #E8ECF5; margin-top: 9px; }
+  .sk.e { height: 10px; width: 60%; background: #E8ECF5; margin-top: 9px; }
+
+  .tabbar { position: relative; height: 60px; display: flex; align-items: center; background: rgba(255,255,255,.95); border-top: 1px solid #E6EAF4; }
+  .tab { flex: 1; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: #98A1B4; }
+  .tab.active { color: #4F7CFF; }
+  .tab-ic { display: grid; place-items: center; height: 22px; }
+  .tab-label { font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
+  .tab--main { flex: 1.08; }
+  .tab-fab { width: 50px; height: 50px; border-radius: 18px; display: grid; place-items: center; background: linear-gradient(135deg,#5B8CFF,#7C5CFF 55%,#A56CFF); color: #fff; box-shadow: 0 8px 22px rgba(79,124,255,.42); margin-top: -22px; }
+  .tab--main .tab-label { margin-top: 2px; }
+
+  /* 第三栏：明细页功能量 */
+  .mini { padding: 12px 14px; background: #F7F8FC; height: 236px; }
+  .mcard { border-radius: 12px; background: linear-gradient(135deg,#5B8CFF,#7C5CFF 60%,#A56CFF); height: 52px; margin-bottom: 8px; }
+  .mrow { display: flex; gap: 7px; margin-bottom: 7px; }
+  .mchip { height: 20px; border-radius: 10px; background: #E6EAF4; }
+  .mlist { border-radius: 10px; background: #fff; border: 1px solid #EAEEF7; height: 34px; margin-bottom: 6px; }
+
+  .note { text-align: center; font-size: 11.5px; color: #8A93A6; margin-top: 13px; }
+  .note b { color: #2B3348; }
+</style>
+</head>
+<body>
+<div class="row">
+
+  <!-- 你的方案 D -->
+  <div class="col">
+    <div class="cap"><b>你的方案 D</b><span>撤掉「明细」，情侣账本补位</span></div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="tbtitle">记一笔</div>
+        <div class="tbicons">
+          <div class="tbbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg><i class="dot">2</i></div>
+          <div class="tbbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg></div>
+        </div>
+      </div>
+      <div class="body"><div class="sk a"></div><div class="sk b"></div><div class="sk c"></div><div class="sk d"></div><div class="sk e"></div></div>
+      <div class="tabbar">
+        <div class="tab active"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span><span class="tab-label">记一笔</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24"><defs><linearGradient id="h1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B8CFF"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#A56CFF"/></linearGradient></defs><path d="M12 20.4c-.3 0-.6-.1-.8-.3C7.7 17 3.5 13.7 3.5 9.9c0-2.7 2.1-4.7 4.7-4.7 1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2 2.6 0 4.7 2 4.7 4.7 0 3.8-4.2 7.1-7.7 10.2-.2.2-.5.3-.8.3z" fill="url(#h1)"/></svg>
+        </span><span class="tab-label">情侣</span></div>
+        <div class="tab tab--main"><span class="tab-fab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3a9 9 0 109 9h-9V3z"/><path d="M14 2.5A9 9 0 0121.5 10H14V2.5z"/></svg>
+        </span><span class="tab-label">总结</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>
+        </span><span class="tab-label">目标</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 14.5a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.1A1.7 1.7 0 007.5 19.3a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 003.14 15a1.7 1.7 0 00-1.55-1H1.5a2 2 0 110-4h.1A1.7 1.7 0 003.14 8.5a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 007.5 4.14 1.7 1.7 0 008.5 2.6V2.5a2 2 0 114 0v.1a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1h.1a2 2 0 110 4h-.1a1.7 1.7 0 00-1.55 1z"/></svg>
+        </span><span class="tab-label">设置</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 修正 D' -->
+  <div class="col">
+    <div class="cap"><b>修正 D′ <em>我建议</em></b><span>撤掉「设置」，情侣账本补位</span></div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="tbtitle">明细</div>
+        <div class="tbicons">
+          <div class="tbbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg><i class="dot">2</i></div>
+          <div class="tbbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+        </div>
+      </div>
+      <div class="body"><div class="sk a"></div><div class="sk b"></div><div class="sk c"></div><div class="sk d"></div><div class="sk e"></div></div>
+      <div class="tabbar">
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg>
+        </span><span class="tab-label">明细</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3a9 9 0 109 9h-9V3z"/><path d="M14 2.5A9 9 0 0121.5 10H14V2.5z"/></svg>
+        </span><span class="tab-label">总结</span></div>
+        <div class="tab tab--main"><span class="tab-fab">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        </span><span class="tab-label">记一笔</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg>
+        </span><span class="tab-label">目标</span></div>
+        <div class="tab"><span class="tab-ic">
+          <svg width="22" height="22" viewBox="0 0 24 24"><defs><linearGradient id="h2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B8CFF"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#A56CFF"/></linearGradient></defs><path d="M12 20.4c-.3 0-.6-.1-.8-.3C7.7 17 3.5 13.7 3.5 9.9c0-2.7 2.1-4.7 4.7-4.7 1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2 2.6 0 4.7 2 4.7 4.7 0 3.8-4.2 7.1-7.7 10.2-.2.2-.5.3-.8.3z" fill="url(#h2)"/></svg>
+        </span><span class="tab-label">情侣</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 为什么不能撤明细 -->
+  <div class="col">
+    <div class="cap"><b>「明细」里装了什么</b><span>它不是一个工具页，是每天要看的主战场</span></div>
+    <div class="phone">
+      <div class="topbar">
+        <div class="tbtitle">明细 <small style="font-size:11px;color:#98A1B4;font-weight:600">2026年10月</small></div>
+        <div class="tbicons"><div class="tbbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div></div>
+      </div>
+      <div class="mini">
+        <div class="mcard"></div>
+        <div class="mrow">
+          <div class="mchip" style="flex:4"></div>
+          <div class="mchip" style="flex:1.6"></div>
+        </div>
+        <div class="mrow">
+          <div class="mchip" style="flex:1;background:#DDE6FB"></div>
+          <div class="mchip" style="flex:1"></div>
+          <div class="mchip" style="flex:1"></div>
+        </div>
+        <div class="mrow" style="align-items:center;height:44px">
+          <div style="width:44px;height:44px;border-radius:50%;background:conic-gradient(#7C5CFF 0 60%,#FF7AA8 60% 78%,#FFB020 78% 90%,#B9C4D6 90% 100%)"></div>
+          <div style="flex:1">
+            <div class="mchip" style="width:70%;height:9px;margin-bottom:6px"></div>
+            <div class="mchip" style="width:52%;height:9px"></div>
+          </div>
+        </div>
+        <div class="mlist"></div>
+        <div class="mlist"></div>
+        <div class="mlist"></div>
+      </div>
+      <div class="tabbar" style="border-top:1px solid #E6EAF4">
+        <div class="tab" style="color:#C3CAD8"><span class="tab-label">底部导航里……</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="note">汇总卡 · 搜索 · 分类筛选 · 全部/支出/收入 · 分类占比环图 · 支出排行 · 按天流水 —— <b>七个功能区</b></div>
+</body>
+</html>

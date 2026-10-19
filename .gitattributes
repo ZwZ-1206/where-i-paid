@@ -1,0 +1,21 @@
+# 统一用 LF 存进仓库，避免 Windows / macOS 协作时整文件 diff
+* text=auto eol=lf
+
+# 批处理脚本必须保持 CRLF，否则 cmd 解析会出错
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制文件不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.gif binary
+*.apk binary
+*.zip binary
+*.jks binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

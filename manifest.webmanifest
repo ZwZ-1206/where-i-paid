@@ -1,0 +1,25 @@
+{
+  "name": "花哪儿了 · 极简手机记账本",
+  "short_name": "花哪儿了",
+  "description": "极简好用的手机记账本。记下每一笔，就知道钱都花哪儿了：视图记账、自定义记账周期、自定义预算、低预算提醒、月度总结与攒钱目标。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F4F6FB",
+  "theme_color": "#4F7CFF",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "lifestyle"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "记一笔", "short_name": "记一笔", "url": "./index.html#add", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "月度总结", "short_name": "总结", "url": "./index.html#report", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "攒钱目标", "short_name": "目标", "url": "./index.html#goals", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

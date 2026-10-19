@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>「互相请」四个归属印记</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #EDF0F7; padding: 26px 22px;
+    font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  }
+  .row { display: flex; gap: 28px; justify-content: center; align-items: flex-start; }
+  .col { width: 390px; }
+  .cap { text-align: center; margin-bottom: 10px; }
+  .cap b { font-size: 14.5px; font-weight: 700; color: #2B3348; }
+  .cap span { display: block; font-size: 11.5px; color: #8A93A6; margin-top: 3px; }
+
+  .phone { width: 390px; background: #F7F8FC; border: 1px solid #E3E7F0; border-radius: 22px; overflow: hidden; box-shadow: 0 10px 30px rgba(20,30,60,.09); }
+  .pad { padding: 15px 16px; }
+
+  /* ── 归属印记选择器 ── */
+  .attrib { display: flex; gap: 7px; margin: 4px 0 14px; }
+  .ab {
+    flex: 1; height: 46px; border-radius: 13px; background: #fff; border: 1.5px solid #E4E9F3;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    font-size: 11.5px; font-weight: 700; color: #6C7488; letter-spacing: .01em;
+  }
+  .ab i { font-style: normal; font-size: 13px; line-height: 1; }
+  .ab.on { border-color: transparent; color: #fff; }
+  .ab.on.me   { background: linear-gradient(135deg,#5B8CFF,#4F7CFF); box-shadow: 0 6px 16px rgba(79,124,255,.34); }
+  .ab.on.peer { background: linear-gradient(135deg,#8E6BFF,#7C5CFF); box-shadow: 0 6px 16px rgba(124,92,255,.34); }
+  .ab.on.both { background: linear-gradient(135deg,#FFB03A,#F29414); box-shadow: 0 6px 16px rgba(242,148,20,.32); }
+  .ab.on.mut  { background: linear-gradient(135deg,#FF85AF,#FF6B9D); box-shadow: 0 6px 16px rgba(255,107,157,.32); }
+  .tip { font-size: 11px; color: #FF6B9D; text-align: center; height: 14px; margin-bottom: 8px; font-weight: 600; }
+
+  .sec { font-size: 11.5px; color: #98A1B4; font-weight: 700; margin: 0 0 8px; letter-spacing: .02em; }
+  .chiprow { display: flex; gap: 7px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chip { height: 30px; padding: 0 13px; border-radius: 10px; background: #fff; border: 1px solid #E8ECF5; font-size: 12px; color: #5C6478; display: grid; place-items: center; font-weight: 600; }
+  .chip.on { background: #EAF0FF; border-color: #C9D8FF; color: #4F7CFF; }
+
+  /* ── 账目卡片 ── */
+  .tx { display: flex; align-items: center; gap: 10px; background: #fff; border-radius: 14px; padding: 11px 13px; margin-bottom: 8px; border: 1px solid #EEF1F8; }
+  .txic { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-size: 18px; background: #FFF3F3; flex: none; }
+  .txm { flex: 1; min-width: 0; }
+  .txt1 { font-size: 13.5px; font-weight: 700; color: #1D2437; display: flex; align-items: center; gap: 6px; }
+  .tag { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+  .tag.me   { background: #EAF0FF; color: #4F7CFF; }
+  .tag.peer { background: #F1EBFF; color: #7C5CFF; }
+  .tag.both { background: #FFF4E3; color: #E08A00; }
+  .tag.mut  { background: #FFEDF3; color: #F5508B; }
+  .txt2 { font-size: 11px; color: #98A1B4; margin-top: 2px; }
+  .amt { font-size: 16px; font-weight: 800; color: #1D2437; letter-spacing: -.01em; }
+
+  /* ── 月卡 ── */
+  .card {
+    margin: 0 16px; border-radius: 22px; padding: 20px 18px;
+    background: linear-gradient(150deg,#5B8CFF 0%,#7C5CFF 52%,#A56CFF 100%);
+    color: #fff; position: relative; overflow: hidden;
+  }
+  .card::after { content:""; position:absolute; width: 190px; height: 190px; border-radius: 50%; background: rgba(255,255,255,.09); right: -60px; top: -70px; }
+  .card .m { font-size: 11.5px; opacity: .82; letter-spacing: .06em; font-weight: 600; }
+  .card .big { font-size: 34px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.02em; }
+  .card .sub { font-size: 11.5px; opacity: .8; }
+  .counts { display: flex; gap: 0; margin: 17px 0 0; background: rgba(255,255,255,.13); border-radius: 14px; padding: 12px 0; position: relative; z-index: 1; }
+  .cnt { flex: 1; text-align: center; position: relative; }
+  .cnt + .cnt::before { content:""; position:absolute; left:0; top:3px; bottom:3px; width:1px; background: rgba(255,255,255,.2); }
+  .cnt b { display: block; font-size: 20px; font-weight: 800; line-height: 1.1; }
+  .cnt span { font-size: 10.5px; opacity: .82; }
+  .verdict { margin-top: 15px; text-align: center; font-size: 14px; font-weight: 700; position: relative; z-index: 1; letter-spacing: .01em; }
+  .foot { font-size: 10.5px; opacity: .6; text-align: center; margin-top: 13px; position: relative; z-index: 1; }
+  .note { text-align: center; font-size: 11.5px; color: #8A93A6; margin-top: 16px; line-height: 1.65; }
+  .note b { color: #2B3348; }
+  .note em { font-style: normal; color: #F5508B; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="row">
+
+  <!-- 面板1：记账页的归属选择器 -->
+  <div class="col">
+    <div class="cap"><b>记一笔页 · 归属印记</b><span>四个选项，按「钱从哪出」区分</span></div>
+    <div class="phone">
+      <div class="pad">
+        <p class="sec">这笔是</p>
+        <div class="attrib">
+          <div class="ab me on"><i>♡</i>我请</div>
+          <div class="ab peer"><i>♡</i>TA 请</div>
+          <div class="ab both"><i>⌂</i>一起花</div>
+          <div class="ab mut"><i>⇄</i>互相请</div>
+        </div>
+        <div class="tip"></div>
+
+        <p class="sec">选中「互相请」时 ↑ 这里浮一行小字：今天你请，明天我请 ✨</p>
+        <div class="chiprow" style="margin-bottom:16px">
+          <span class="chip on">互相请</span>
+          <span class="chip" style="background:#FFEDF3;border-color:#FFD6E3;color:#F5508B">今天你请，明天我请 ✨</span>
+        </div>
+
+        <p class="sec">账目卡片上的徽章</p>
+        <div class="tx">
+          <div class="txic">🍜</div>
+          <div class="txm"><div class="txt1">餐饮 <span class="tag me">我请</span></div><div class="txt2">20:03 · 支付宝 · 牛肉面</div></div>
+          <div class="amt">-32.00</div>
+        </div>
+        <div class="tx">
+          <div class="txic" style="background:#F5F0FF">🎬</div>
+          <div class="txm"><div class="txt1">娱乐 <span class="tag peer">TA 请</span></div><div class="txt2">15:21 · 微信 · 电影票</div></div>
+          <div class="amt">-96.00</div>
+        </div>
+        <div class="tx">
+          <div class="txic" style="background:#FFF7EA">🧺</div>
+          <div class="txm"><div class="txt1">居家 <span class="tag both">一起花</span></div><div class="txt2">11:02 · 小金库 · 洗衣液</div></div>
+          <div class="amt">-58.90</div>
+        </div>
+        <div class="tx" style="margin-bottom:0">
+          <div class="txic" style="background:#FFEDF3">🧋</div>
+          <div class="txm"><div class="txt1">餐饮 <span class="tag mut">互相请</span></div><div class="txt2">16:40 · 支付宝 · 两杯奶茶</div></div>
+          <div class="amt">-36.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 面板2：爱的账单月卡 -->
+  <div class="col">
+    <div class="cap"><b>爱的账单 · 月卡</b><span>只数次数，不算金额</span></div>
+    <div class="phone" style="padding:18px 0 22px">
+      <div class="card">
+        <div class="m">2026 年 10 月</div>
+        <div class="big">¥4,663.43</div>
+        <div class="sub">我们一起花掉的钱</div>
+
+        <div class="counts">
+          <div class="cnt"><b>8</b><span>我请了</span></div>
+          <div class="cnt"><b>7</b><span>TA 请了</span></div>
+          <div class="cnt"><b>12</b><span>互相请</span></div>
+        </div>
+
+        <div class="verdict">请得挺匀的 ❤️</div>
+        <div class="foot">和 TA 在一起的第 214 天</div>
+      </div>
+
+      <div style="padding:20px 18px 0">
+        <p class="sec">差 3 次以上时的文案</p>
+        <div style="background:#fff;border-radius:14px;padding:14px 15px;border:1px solid #EEF1F8">
+          <div style="font-size:12.5px;color:#5C6478;line-height:2">
+            我比 TA 多 4 次 → <b style="color:#1D2437">「这个月你更宠 TA 一点」</b><br>
+            TA 比我多 4 次 → <b style="color:#1D2437">「TA 这个月很宠你」</b><br>
+            <span style="color:#C2C8D6">永远不出现「你请得比 TA 少 3 次」</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="note">
+  <b>「互相请」不是 AA 结算</b> —— 它只是一句<em>今天你请我、明天我请你</em>的礼尚往来<br>
+  不自动算「该转给你 23.5 元」，不排名，不比较谁花得多
+</div>
+</body>
+</html>

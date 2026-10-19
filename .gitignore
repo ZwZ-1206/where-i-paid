@@ -1,0 +1,60 @@
+# 花哪儿了 / Jizhang
+# 项目目前没有 git，此文件为将来接入版本控制准备。
+
+# 测试产出物（截图等，纯临时产物，用完即弃）
+_test/shots/
+_test/_shots/
+_test/_tmp/
+_test/*.png
+_test/*.jpg
+
+# 构建产物（build-dist.js 生成，可随时重建）
+dist/
+
+# APK 产物（android/make-apk.js 生成）
+# 构建目录整体忽略，但正式发行包留一份在仓库里，方便别人直接点下载
+dist-apk/*
+!dist-apk/*.apk
+
+# 依赖
+node_modules/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日志
+*.log
+npm-debug.log*
+
+# Wrangler 本地状态（含本地 D1 数据库副本，纯本地数据）
+.wrangler/
+
+# AI 助手工作目录（会话记忆，非项目产物）
+.workbuddy/
+
+# ---------- 安卓壳（android/）----------
+# 打进 APK 的网页是构建产物，由 android/sync-www.js 从 dist/ 生成
+android/app/src/main/assets/www/
+
+# 签名与口令：绝对不要提交，丢了/泄露都是事故
+android/keystore/
+android/keystore.properties
+android/local.properties
+
+# Gradle 构建产物与缓存
+android/.gradle/
+android/build/
+android/app/build/
+android/.kotlin/
+
+# ---------- 自用工具：只留本地，不公开 ----------
+# 推仓库用的脚本，跟 App 本身无关，且含本机环境信息
+上传到GitHub.bat
+_tools/upload-github.js
+
+# 官网里内嵌的 App（build-site.js 生成）
+site/app/

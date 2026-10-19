@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>学生向命名</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #EDF0F7; padding: 24px 22px; font-family: -apple-system, "Segoe UI", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif; }
+  .row { display: flex; gap: 24px; justify-content: center; align-items: flex-start; }
+
+  .cap { text-align: center; margin-bottom: 10px; }
+  .cap b { font-size: 13.5px; font-weight: 700; color: #2B3348; }
+  .cap span { display: block; font-size: 11px; color: #8A93A6; margin-top: 3px; }
+
+  /* 候选卡 */
+  .cands { width: 520px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .c { background: #fff; border: 1px solid #E6EAF4; border-radius: 13px; padding: 11px 12px 12px; position: relative; }
+  .c.pick { border-color: #C9D8FF; box-shadow: 0 6px 18px rgba(79,124,255,.12); }
+  .c.warn { border-color: #F0E2D6; }
+  .n { font-size: 19px; font-weight: 800; color: #1D2437; letter-spacing: .01em; }
+  .n em { font-style: normal; font-size: 9.5px; font-weight: 700; color: #7C5CFF; background: #F3EFFF; border-radius: 5px; padding: 1px 5px; margin-left: 5px; vertical-align: 4px; }
+  .n em.g { color: #6C7488; background: #EFF2F8; }
+  .slog { font-size: 10.5px; color: #7C5CFF; font-weight: 700; margin-top: 3px; }
+  .why { font-size: 10.5px; color: #7C8598; line-height: 1.55; margin-top: 5px; }
+  .risk { font-size: 10px; color: #B0803F; line-height: 1.5; margin-top: 5px; padding-top: 5px; border-top: 1px dashed #F0E6D9; }
+
+  /* 手机 */
+  .phone { width: 340px; background: #F7F8FC; border: 1px solid #E3E7F0; border-radius: 19px; overflow: hidden; box-shadow: 0 10px 26px rgba(20,30,60,.09); }
+  .topbar { height: 50px; display: flex; align-items: center; padding: 0 13px; background: #FCFDFF; border-bottom: 1px solid #EDF0F6; gap: 7px; }
+  .tbt { font-size: 16px; font-weight: 800; color: #1D2437; }
+  .tbs { font-size: 10px; color: #98A1B4; }
+  .body { height: 132px; padding: 12px 13px; background: linear-gradient(180deg,#FCFDFF,#F3F5FB); }
+  .sk { border-radius: 6px; background: #DFE5F0; height: 10px; }
+  .sk.b { background: #E8ECF5; margin-top: 9px; }
+  .tabbar { height: 56px; display: flex; align-items: center; background: rgba(255,255,255,.96); border-top: 1px solid #E6EAF4; }
+  .tab { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #98A1B4; }
+  .tab--couple { color: #7C5CFF; }
+  .tab-ic { display: grid; place-items: center; height: 20px; }
+  .tab-label { font-size: 9.5px; font-weight: 700; }
+  .tab--main { flex: 1.06; }
+  .tab-fab { width: 44px; height: 44px; border-radius: 15px; display: grid; place-items: center; background: linear-gradient(135deg,#5B8CFF,#7C5CFF 55%,#A56CFF); color: #fff; box-shadow: 0 7px 17px rgba(79,124,255,.40); margin-top: -19px; }
+
+  .home { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 18px 0 16px; }
+  .appic { width: 68px; height: 68px; border-radius: 17px; display: grid; place-items: center;
+           background: linear-gradient(140deg,#5B8CFF 0%,#7C5CFF 55%,#A56CFF 100%);
+           box-shadow: 0 9px 22px rgba(93,110,255,.34); }
+  .appname { font-size: 13px; font-weight: 700; color: #2B3348; }
+  .note { font-size: 10.5px; color: #98A1B4; }
+
+  .foot { text-align: center; font-size: 12px; color: #6C7488; margin-top: 14px; line-height: 1.75; }
+  .foot b { color: #2B3348; } .foot em { font-style: normal; color: #7C5CFF; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="row">
+
+  <div>
+    <div class="cap"><b>四个候选（按「大学生会不会自己说出这个词」排序）</b><span>不是问哪个好听，是问哪个像他们的话</span></div>
+    <div class="cands">
+
+      <div class="c pick">
+        <div class="n">花哪了 <em>主推</em></div>
+        <div class="slog">记下来就知道了</div>
+        <div class="why">大学生记账的动机就是这一句。宿舍里问室友、月底问自己，都是这五个字。</div>
+        <div class="risk">风险：像口头禅不像品牌名，商店里显随意</div>
+      </div>
+
+      <div class="c">
+        <div class="n">小钱 <em class="g">备选</em></div>
+        <div class="slog">小钱也是钱</div>
+        <div class="why">正好是这个 App 的态度——一笔 8 块的奶茶也值得记。两个字最好记。</div>
+        <div class="risk">风险：偏淡，记忆点全靠 slogan 撑</div>
+      </div>
+
+      <div class="c">
+        <div class="n">零花 <em class="g">备选</em></div>
+        <div class="slog">花零钱，记零花</div>
+        <div class="why">零花钱 / 花零钱 双关。学生味最正，可爱，情侣模块也不冲突。</div>
+        <div class="risk">风险：显小，像给中学生用的；毕业就失效</div>
+      </div>
+
+      <div class="c warn">
+        <div class="n">吃土 <em class="g">不推荐</em></div>
+        <div class="slog">月底再吃土</div>
+        <div class="why">共鸣确实最强，宿舍里天天在说。</div>
+        <div class="risk">风险：吃土是病，记账是药。别把药的名字取成病名</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div>
+    <div class="cap"><b>落到屏幕上</b><span>桌面 + App 内，两层名字互不干扰</span></div>
+    <div class="phone">
+      <div class="home">
+        <div class="appic">
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+            <circle cx="17" cy="17" r="8.6" stroke="#fff" stroke-width="2.6"/>
+            <path d="M23.4 23.4L30 30" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/>
+            <path d="M14.4 15.6c.6-1.5 1.9-2.4 3.4-2.4" stroke="#C9D8FF" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="appname">花哪了</div>
+        <div class="note">桌面图标下的三个字</div>
+      </div>
+      <div class="topbar"><span class="tbt">一块儿</span><span class="tbs">和 TA 在一起的第 214 天</span></div>
+      <div class="body">
+        <div class="sk" style="width:44%"></div>
+        <div class="sk b" style="width:72%"></div>
+        <div class="sk b" style="width:56%"></div>
+        <div class="sk b" style="width:64%"></div>
+      </div>
+      <div class="tabbar">
+        <div class="tab"><span class="tab-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.8" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.8" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg></span><span class="tab-label">明细</span></div>
+        <div class="tab"><span class="tab-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M12 3a9 9 0 109 9h-9V3z"/><path d="M14 2.5A9 9 0 0121.5 10H14V2.5z"/></svg></span><span class="tab-label">总结</span></div>
+        <div class="tab tab--main"><span class="tab-fab"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span><span class="tab-label">记一笔</span></div>
+        <div class="tab"><span class="tab-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none"/></svg></span><span class="tab-label">目标</span></div>
+        <div class="tab tab--couple"><span class="tab-ic"><svg width="20" height="20" viewBox="0 0 24 24"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5B8CFF"/><stop offset=".55" stop-color="#7C5CFF"/><stop offset="1" stop-color="#A56CFF"/></linearGradient></defs><path d="M12 20.4c-.3 0-.6-.1-.8-.3C7.7 17 3.5 13.7 3.5 9.9c0-2.7 2.1-4.7 4.7-4.7 1.6 0 3 .8 3.8 2 .8-1.2 2.2-2 3.8-2 2.6 0 4.7 2 4.7 4.7 0 3.8-4.2 7.1-7.7 10.2-.2.2-.5.3-.8.3z" fill="url(#hg)"/></svg></span><span class="tab-label">一块儿</span></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="foot">
+  两层名字的真正好处不只是分工，是<em>语气隔离</em>——<br>
+  「花哪了」是问自己，适合一个人；「一块儿」是陪对方，适合两个人。<b>在情侣页里，那个追问的「花哪了」永远不会出现。</b>
+</div>
+</body>
+</html>

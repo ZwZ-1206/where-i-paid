@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5B8CFF"/>
+      <stop offset="52%" stop-color="#7C5CFF"/>
+      <stop offset="100%" stop-color="#A56CFF"/>
+    </linearGradient>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#F0EDFF"/>
+    </linearGradient>
+    <linearGradient id="y" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6E8CFF"/>
+      <stop offset="100%" stop-color="#8E5CFF"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="116" fill="url(#g)"/>
+  <circle cx="410" cy="104" r="92" fill="#ffffff" opacity=".09"/>
+  <circle cx="96" cy="430" r="66" fill="#ffffff" opacity=".07"/>
+
+  <!-- 钱包主体 -->
+  <g>
+    <rect x="96" y="150" width="320" height="212" rx="48" fill="url(#w)"/>
+    <!-- 钱包上沿翻盖 -->
+    <path d="M96 214h320" stroke="#B9AEFF" stroke-opacity=".55" stroke-width="8"/>
+    <!-- 卡扣 -->
+    <rect x="306" y="248" width="110" height="66" rx="33" fill="#7C5CFF" opacity=".16"/>
+    <circle cx="361" cy="281" r="15" fill="#7C5CFF"/>
+    <!-- 人民币符号 -->
+    <g fill="none" stroke="#7C5CFF" stroke-width="19" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M146 248l34 36 34-36"/>
+      <path d="M180 284v48"/>
+      <path d="M150 302h60"/>
+      <path d="M150 326h60"/>
+    </g>
+  </g>
+</svg>
