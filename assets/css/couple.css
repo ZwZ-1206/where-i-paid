@@ -144,8 +144,10 @@
 .cp-label { font-size: 12.5px; font-weight: 650; color: var(--text-2); }
 /* 选填的字段在标签后面挂一个淡一点的小字，别让人以为必填 */
 .cp-label-opt { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--text-3); }
-/* 生日两个并排：各占一半，窄屏也不会挤成一列太长 */
-.cp-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* 生日两个并排：各占一半，窄屏也不会挤成一列太长。
+   类名必须和「配对」胶囊（.cp-pair）区分开：两者都叫 .cp-pair 时会互相覆盖，
+   生日那一块会被压成 30px 高的紫色渐变条，内容全溢出来。 */
+.cp-bday-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .cp-input {
   width: 100%; height: 46px; padding: 0 14px;
   border-radius: 13px; border: 1px solid var(--line);

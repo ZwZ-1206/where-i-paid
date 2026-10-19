@@ -9,7 +9,7 @@ const http = require('http');
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const PORT = 9333;
 const OUT = env.shots('shoot'); // 截图是产出物，落在系统临时目录，不进源码树（见 O1）
-const BASE = 'http://localhost:4173/index.html';
+const BASE = 'http://127.0.0.1:4173/index.html';
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 

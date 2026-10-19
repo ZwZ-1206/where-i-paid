@@ -447,8 +447,10 @@
           <div class="cp-err" id="cp-since-err"></div>
         </div>
 
-        <!-- 生日：选填。不填也能开通，填了日历上会在那天标一行小字 -->
-        <div class="cp-pair">
+        <!-- 生日：选填。不填也能开通，填了日历上会在那天标一行小字
+             注意类名不能叫 .cp-pair —— 那是右上角「配对」按钮的类（紫色胶囊），
+             同名会被它覆盖成 30px 高的一条渐变，两个输入框全挤出来（v1.18.5 的截图就是这样）。 -->
+        <div class="cp-bday-pair">
           <div class="cp-field">
             <label class="cp-label">你的生日<span class="cp-label-opt">选填</span></label>
             <button class="cp-input cp-input--btn" id="cp-mybd" type="button">
@@ -689,7 +691,9 @@
     if (me && peer && ok) {
       const c = cfg();
       // 草稿优先，其次已保存的设置
-      const validate = () => {
+      // showErrors：第一次渲染时不弹红字。用户还没开始填就被告知「给 TA 一个称呼吧」，
+      // 像是被训了一顿（截图里三行红字从上到下全是「你还没填」）。只在真的动手之后才提示。
+      const validate = (showErrors) => {
         const meV = (me.value || '').trim();
         const peerV = (peer.value || '').trim();
         draft.meName = meV;
@@ -698,18 +702,21 @@
         const meErr = root.querySelector('#cp-me-err');
         const peerErr = root.querySelector('#cp-peer-err');
         const sinceErr = root.querySelector('#cp-since-err');
-        if (meErr) meErr.textContent = meV ? '' : '给 TA 一个称呼吧';
-        if (peerErr) peerErr.textContent = peerV ? '' : 'TA 该怎么称呼？';
-        if (sinceErr) sinceErr.textContent = since ? '' : '选一个日子，之后能改';
+        if (meErr) meErr.textContent = (!showErrors || meV) ? '' : '给 TA 一个称呼吧';
+        if (peerErr) peerErr.textContent = (!showErrors || peerV) ? '' : 'TA 该怎么称呼？';
+        if (sinceErr) sinceErr.textContent = (!showErrors || since) ? '' : '选一个日子，之后能改';
         const good = !!meV && !!peerV && !!since;
         ok.disabled = !good;
         return { meV, peerV, good };
       };
 
-      me.addEventListener('input', validate);
-      peer.addEventListener('input', validate);
-      // 已有资料（或刚选完日期）时要立刻算一次，否则「继续」一直是灰的
-      validate();
+      me.addEventListener('input', () => validate(true));
+      peer.addEventListener('input', () => validate(true));
+      me.addEventListener('blur', () => validate(true));
+      peer.addEventListener('blur', () => validate(true));
+      // 已有资料（或刚选完日期）时要立刻算一次，否则「继续」一直是灰的。
+      // 但这一次不弹红字 —— 只是把按钮的可用状态算出来。
+      validate(false);
 
       if (sinceBtn) {
         sinceBtn.addEventListener('click', () => {
@@ -725,14 +732,14 @@
               }
               draft.togetherSince = U.ymd(new Date(d));
               sinceBtn.innerHTML = `${U.escapeHtml(U.fullDate(d))} ${Icons.svg('calendar', 16)}`;
-              validate();
+              validate(false);
             },
           });
         });
       }
 
       ok.addEventListener('click', () => {
-        const r = validate();
+        const r = validate(true);
         if (!r.good) return;
         S.setSettings({
           couple: {
@@ -767,8 +774,6 @@
       };
       bdBtn('#cp-mybd', 'meBirthday', '你是哪天生日');
       bdBtn('#cp-peerbd', 'peerBirthday', 'TA 是哪天生日');
-
-      validate();
     }
   }
 
@@ -1378,6 +1383,34 @@
     const host = root || document.querySelector('#view-couple');
     markKeepScroll(host);
     refreshHere(host);
+  }
+
+  /**
+   * 同步拉下来之后自动重画。
+   *
+   * 为什么必须要有：`applyRemoteOps` 只改数据、不碰 DOM，同步层也根本不知道
+   * 界面长什么样。以前配对成功后，对方记的账要**手动刷新整个页面**才出现
+   * （真机反馈：「不刷新无法同步」）。
+   *
+   * 三条约束，缺一不可：
+   *   1. 合并 120ms 内的事件 —— 一次 pull 会连着 emit cptx / goal / couple 三次，别连画三遍；
+   *   2. 有弹层开着就不画 —— 用户可能正在填金额，重画会把输入冲掉；关掉弹层后各入口本来也会自己刷；
+   *   3. 记下滚动位置再画 —— 否则每 20 秒轮询一次就把人弹回顶部。
+   */
+  let softTimer = null;
+  function softRefresh() {
+    if (softTimer) return;
+    softTimer = setTimeout(() => {
+      softTimer = null;
+      const root = document.getElementById('view-couple');
+      if (!root) return;
+      if (document.querySelector('#sheet-root .sheet')) return;
+      try {
+        markKeepScroll(root);
+        render(root);
+        refreshTop();
+      } catch (e) { /* 自动刷新失败不能影响记账 */ }
+    }, 120);
   }
 
   /**
@@ -4075,6 +4108,8 @@
     MILES,
     renderMemories,
     renderDays,
+    // 同步层拉到对方的改动后，由 app.js 调它自动重画（不用用户手动刷新）
+    softRefresh,
     // 日历小字标注的唯一算法入口（节日 / 生日 / 第 N 天），外部与探针共用
     dayEvents,
     dayIndex,

@@ -6,7 +6,7 @@ const http = require('http');
 
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const PORT = 9425;
-const BASE = 'http://localhost:4173/index.html';
+const BASE = 'http://127.0.0.1:4173/index.html';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const getJSON = (p) => new Promise((res, rej) => {
   http.get(`http://127.0.0.1:${PORT}${p}`, (r) => { let d = ''; r.on('data', (c) => (d += c)); r.on('end', () => { try { res(JSON.parse(d)); } catch (e) { rej(e); } }); }).on('error', rej);

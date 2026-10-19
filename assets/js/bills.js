@@ -15,23 +15,59 @@
 
   // ------------------------------------------------------------
   // 表头列名识别
-  // 顺序有意义：越靠前的组越先认领列，避免「交易时间」被「交易类型」抢走
+  // 顺序有意义：越靠前的组越先认领列，避免「交易金额」被「金额」抢走
+  //
+  // 各家格式差异（2026-10 核对过主流银行导出的列名）：
+  //   农行  交易日期 + 交易时间（**拆成两列**）、摘要、交易金额、账户余额、对方账户、对方姓名、交易渠道
+  //   工行  交易日期、摘要、币种、借方金额、贷方金额、余额、对方户名
+  //   建行  新：借方(支取) / 贷方(收入)；旧：存入 / 支出 —— 都是两列
+  //   招行  支出 / 收入 两列，没有方向列
+  //   中行  交易金额 + 借贷标志（"借"/"贷"）
+  //   交行  发生额 + 借贷标志
+  //   邮储  交易日期 + 交易时间 + 摘要 + 交易金额
+  // 所以这里必须同时支持：① 两列金额 ② 一列金额 + 方向 ③ 一列带符号金额
+  // ④ 日期与时间分列（拼起来才是完整时间）
   // ------------------------------------------------------------
   const COL_HINTS = [
-    { key: 'orderNo', hints: ['交易单号', '交易订单号', '交易号', '流水号', '订单号', '商户单号', '交易流水号'] },
-    { key: 'time', hints: ['交易时间', '交易创建时间', '付款时间', '记账时间', '交易日期', '入账日期', '发生日期', '日期', '时间'] },
-    { key: 'amtOut', hints: ['支出金额', '借方发生额', '借方金额', '付款金额', '支出'] },
-    { key: 'amtIn', hints: ['收入金额', '贷方发生额', '贷方金额', '收款金额', '收入'] },
-    { key: 'amount', hints: ['金额(元)', '金额（元）', '交易金额', '发生额', '订单金额', '金额'] },
-    { key: 'io', hints: ['收/支', '收／支', '收支', '收付', '借贷标志', '借贷', '资金方向'] },
+    { key: 'orderNo', hints: ['交易单号', '交易订单号', '交易号', '流水号', '交易流水号', '凭证号', '订单号', '商户单号'] },
+    // date：只有日期。银行常把它和「时间」拆开，所以单独认
+    { key: 'date', hints: ['交易日期', '记账日期', '入账日期', '发生日期', '交易发生日期', '日期'] },
+    // time：完整时间，或只有时分秒
+    { key: 'time', hints: ['交易时间', '交易创建时间', '付款时间', '发生时间', '入账时间', '时间'] },
+    { key: 'amtOut', hints: ['支出金额', '支出', '借方发生额', '借方金额', '借方支取', '借方', '支取金额', '支取', '转出金额', '转出', '付款金额', '扣款金额'] },
+    { key: 'amtIn', hints: ['收入金额', '收入', '贷方发生额', '贷方金额', '贷方收入', '贷方', '存入金额', '存入', '转入金额', '转入', '收款金额'] },
+    { key: 'amount', hints: ['交易金额', '发生额', '订单金额', '人民币金额', '金额'] },
+    { key: 'io', hints: ['收/支', '收／支', '收支', '收付', '借贷标志', '借贷方向', '借贷类型', '借贷标识', '借贷', '资金方向', '资金流向', '交易方向', '收付标志', '进出标志'] },
     { key: 'kind', hints: ['交易类型', '交易分类', '业务类型', '类型'] },
-    { key: 'merchant', hints: ['交易对方', '对方户名', '对方名称', '商户名称', '收款方', '付款方', '商家'] },
-    { key: 'product', hints: ['商品名称', '商品说明', '商品', '摘要', '用途', '交易说明'] },
-    { key: 'method', hints: ['支付方式', '收/付款方式', '收／付款方式', '付款方式', '账户'] },
-    { key: 'note', hints: ['备注', '附言'] },
+    // 「对方账号」是卡号，不算商户名，所以只认姓名/户名这一类
+    { key: 'merchant', hints: ['交易对方', '对方户名', '对方姓名', '对方账户名称', '对方名称', '交易对手', '商户名称', '收款方', '付款方', '商家'] },
+    { key: 'product', hints: ['商品名称', '商品说明', '商品', '交易摘要', '摘要', '用途', '交易说明', '交易备注'] },
+    { key: 'method', hints: ['支付方式', '收/付款方式', '收／付款方式', '付款方式', '交易渠道', '交易机构', '交易网点', '开户机构', '开户行', '渠道', '账户'] },
+    { key: 'note', hints: ['备注', '附言', '说明'] },
   ];
 
   const norm = (s) => String(s == null ? '' : s).replace(/\s+/g, '').replace(/[()（）]/g, '');
+
+  /** 把「日期列 + 时间列」拼成能解析的一串（银行经常拆成两列） */
+  function combineDateTime(dateRaw, timeRaw) {
+    const d = String(dateRaw || '').trim();
+    const t = String(timeRaw || '').trim();
+    if (!d && !t) return '';
+    if (!t) return d;
+    if (!d) return t;
+    // 第一列本身就是完整时间（含时分），别再拼
+    if (/\d{1,2}:\d{2}/.test(d)) return d;
+    let ds = d.replace(/[年月]/g, '-').replace(/日/g, '').replace(/[./]/g, '-');
+    if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(ds)) {
+      const c = ds.match(/^(\d{4})(\d{2})(\d{2})$/);   // 20260809
+      if (c) ds = c[1] + '-' + c[2] + '-' + c[3];
+    }
+    // 时间列可能是 09:12:33 / 091233 / 09:12
+    let tp = t;
+    const hm = t.match(/^(\d{2}):?(\d{2})(?::?(\d{2}))?$/);
+    if (hm) tp = hm[1] + ':' + hm[2] + (hm[3] ? ':' + hm[3] : ':00');
+    return ds + ' ' + tp;
+  }
 
   function detectHeader(rows) {
     let best = null;
@@ -49,9 +85,10 @@
           if (idx >= 0) { map[g.key] = idx; score++; break; }
         }
       });
-      // 必须认出时间与金额，否则这一行不是表头
-      const ok = map.amount != null || map.amtOut != null || map.amtIn != null;
-      if (!ok || map.time == null) continue;
+      // 必须认出金额，而且至少有一个时间列（date 或 time 都算）
+      const hasAmt = map.amount != null || map.amtOut != null || map.amtIn != null;
+      const hasTime = map.time != null || map.date != null;
+      if (!hasAmt || !hasTime) continue;
       if (!best || score > best.score) best = { idx: i, map, score };
     }
     return best;
@@ -198,7 +235,15 @@
 
     const head = detectHeader(rows);
     if (!head) {
-      throw new Error('认不出表头。需要文件里有一行列名，比如「交易时间、交易对方、金额」。微信/支付宝导出的原始账单 CSV 可以直接用。');
+      // 报错时把「最像表头的那一行」打出来，用户一眼能看出差在哪，
+      // 也方便以后遇到新银行直接照着加别名（比一句「认不出表头」有用得多）。
+      const cand = rows.slice(0, 10)
+        .map((r) => r.map((c) => String(c).trim()).filter(Boolean))
+        .filter((r) => r.length >= 2)
+        .sort((a, b) => b.length - a.length)[0] || [];
+      throw new Error('认不出表头：文件里需要一行列名，至少包含「日期/时间」和「金额」。' +
+        (cand.length ? '我在前几行里看到这些列：' + cand.slice(0, 10).join('、') + '。' : '') +
+        ' 如果是 Excel 文件，请先另存为 CSV。');
     }
 
     const platform = detectPlatform(text);
@@ -213,13 +258,21 @@
     let neutral = 0;
     let bad = 0;
 
+    // 没有借方/贷方列、也没有方向列时，靠摘要里的字眼判断收入还是支出
+    const IN_WORDS = /收入|存入|转入|入账|工资|代发|薪酬|利息|结息|分红|退款|退货|报销|奖金|补贴|收款|汇入/;
+    const OUT_WORDS = /支出|消费|转出|取现|取款|扣款|手续费|费用|缴费|还款|付款|汇出|支付|购买/;
+
     for (let i = head.idx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row || row.length < 2) continue;
       const joined = row.join(' ');
       if (/^-{3,}|^={3,}/.test(joined.trim())) continue;
 
-      const ts = parseTs(get(row, 'time'));
+      // 日期与时间可能分列（农行 / 邮储 / 建行都这样），拼起来再解析
+      const ts = parseTs(combineDateTime(
+        map.date != null ? get(row, 'date') : '',
+        get(row, 'time')
+      ));
       let amtOut = 0;
       let amtIn = 0;
       if (map.amtOut != null) amtOut = Math.abs(parseAmount(get(row, 'amtOut')));
@@ -234,17 +287,18 @@
       let type;
       if (map.io != null) {
         const f = get(row, 'io');
-        if (/收入|收款|贷方|贷/.test(f)) type = 'income';
-        else if (/支出|付款|借方|借/.test(f)) type = 'expense';
+        // 「借」= 支出、「贷」= 收入，是活期账户的记账口径（建行/工行/交行都这么写）
+        if (/收入|收款|贷方|贷|存入|转入|进/.test(f)) type = 'income';
+        else if (/支出|付款|借方|借|支取|转出|出/.test(f)) type = 'expense';
         else { neutral++; continue; }   // 不计收支 / 中性交易（提现、还款、转账）
       } else if (amtOut || amtIn) {
         type = (amtIn && !amtOut) ? 'income' : 'expense';
       } else if (raw < 0) {
         type = 'expense';
-      } else if (map.kind != null && /收入|收款|转入|退款/.test(get(row, 'kind'))) {
-        type = 'income';
       } else {
-        type = 'expense';
+        // 一列正数金额 + 没有方向列：只能看摘要/交易类型/对方
+        const probe = [get(row, 'kind'), get(row, 'product'), get(row, 'merchant'), get(row, 'note')].join(' ');
+        type = (IN_WORDS.test(probe) && !OUT_WORDS.test(probe)) ? 'income' : 'expense';
       }
 
       const merchant = get(row, 'merchant');
@@ -445,7 +499,7 @@
           <button class="scan-drop" id="bill-pick" type="button">
             <span class="scan-drop-ic">📄</span>
             <span class="scan-drop-title">选择账单 CSV 文件</span>
-            <span class="scan-drop-desc">微信支付 / 支付宝 / 网上银行导出的账单流水，CSV 或 TXT</span>
+            <span class="scan-drop-desc">微信 / 支付宝 / 工农中建交邮储等银行的流水，CSV 或 TXT</span>
             <span class="scan-drop-btn">从文件选择</span>
           </button>
         ` : `
@@ -480,8 +534,9 @@
             <div class="scan-tips-title">怎么导出账单</div>
             <div>· <b>微信</b>：我 → 服务 → 钱包 → 账单 → 常见问题 → 下载账单 → 用于个人对账，账单会发到邮箱</div>
             <div>· <b>支付宝</b>：我的 → 账单 → 右上角 ⋯ → 开具交易流水证明 → 用于个人对账，发到邮箱</div>
-            <div>· <b>银行卡</b>：网银或银行 App 里导出流水，或去柜台打印后转成 CSV</div>
-            <div>· 邮箱收到的账单通常是压缩包，解压出 CSV 再选进来</div>
+            <div>· <b>银行卡</b>：网银或银行 App 里导出「交易明细」，选 CSV / Excel；Excel 请先「另存为 CSV」再导进来</div>
+            <div>· 表头不用改：各家银行的列名（交易日期、借方金额、发生额、摘要…）都能自动认，日期和时间分两列也行
+            · 邮箱收到的账单通常是压缩包，解压出 CSV 再选进来</div>
             <div>· 全程在本地解析，文件不会上传到任何服务器</div>
           </div>
         ` : ''}
@@ -524,30 +579,28 @@
     const pick = el.querySelector('#bill-pick');
     if (pick) {
       pick.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.csv,.txt,text/csv,text/plain';
-        input.addEventListener('change', async () => {
-          const f = input.files && input.files[0];
-          if (!f) return;
-          uiState.busy = true;
-          uiState.error = '';
-          try {
-            const parsed = await parseFile(f);
-            const seen = S.srcKeys();
-            uiState.parsed = parsed;
-            uiState.fileName = f.name;
-            uiState.include = parsed.entries.map((e) => !seen.has(e.srcKey));
-            uiState.dupCount = uiState.include.filter((x) => !x).length;
-          } catch (err) {
-            uiState.parsed = null;
-            uiState.error = err.message || '解析失败';
-          } finally {
-            uiState.busy = false;
-            rerender();
-          }
+        // 统一走 U.pickFile：input 必须先挂进 DOM，否则安卓 WebView 不弹选择器
+        U.pickFile({
+          accept: '.csv,.txt,text/csv,text/plain',
+          onPick: async (f) => {
+            uiState.busy = true;
+            uiState.error = '';
+            try {
+              const parsed = await parseFile(f);
+              const seen = S.srcKeys();
+              uiState.parsed = parsed;
+              uiState.fileName = f.name;
+              uiState.include = parsed.entries.map((e) => !seen.has(e.srcKey));
+              uiState.dupCount = uiState.include.filter((x) => !x).length;
+            } catch (err) {
+              uiState.parsed = null;
+              uiState.error = err.message || '解析失败';
+            } finally {
+              uiState.busy = false;
+              rerender();
+            }
+          },
         });
-        input.click();
       });
     }
 

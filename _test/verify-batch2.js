@@ -292,7 +292,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     console.log('\n=== 3. 设置页：去掉主屏幕、加上赞助作者 ===');
     const settings = await evalJs(`
       window.App.go('settings');
-      await new Promise((r) => setTimeout(r, 600));
+      // 版本号是异步补上去的（要读 caches），等它真的变成 v1.18.x 再断言
+      for (let i = 0; i < 25; i++) {
+        const el = document.querySelector('.view[data-view="settings"] [data-ver]');
+        if (el && /^v\d+\.\d+/.test(el.textContent)) break;
+        await new Promise((r) => setTimeout(r, 100));
+      }
       const v = document.querySelector('.view[data-view="settings"]');
       const t = v ? v.textContent : '';
       const sp = v ? v.querySelector('[data-act="sponsor"]') : null;
@@ -302,12 +307,73 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         hasSponsor: !!sp,
         sponsorName: sp ? sp.querySelector('.set-name').textContent : '',
         groups: Array.from(v.querySelectorAll('.set-group-title')).map((x) => x.textContent),
+        ver: (v.querySelector('[data-ver]') || {}).textContent || '',
+        verFoot: (v.querySelector('[data-ver-foot]') || {}).textContent || '',
+        footnote: (v.querySelector('.center.small.muted') || {}).textContent || '',
       };
     `);
     ok('「添加到主屏幕」已删除', settings.hasInstall === false && settings.hasInstallAct === false);
     ok('出现「赞助作者」入口', settings.hasSponsor === true, settings.sponsorName);
     ok('入口名字对', settings.sponsorName === '赞助作者', settings.sponsorName);
     ok('没有留下空的「其他」组', settings.groups.indexOf('其他') < 0, settings.groups.join('/'));
+    // 页脚以前写死 "花哪儿了 v1.8.1"，跟上面「当前版本 v1.18.x」自相矛盾，
+    // 还写着「数据仅保存在本机…不上传服务器」（情侣账已经加密上云了）。
+    ok('页脚版本与「当前版本」是同一个数，且不出现 vv', /^v\d+\.\d+\.\d+$/.test(settings.verFoot)
+      && settings.verFoot === settings.ver && settings.footnote.indexOf('vv') < 0,
+      settings.ver + ' / ' + settings.verFoot);
+    ok('页脚不再写「不上传服务器」', settings.footnote.indexOf('不上传服务器') < 0, settings.footnote.replace(/\s+/g, ' ').trim());
+
+    // 旧版把「连不上服务器」报成 offline，界面就写「现在连不上网」——
+    // 用户 5G 满格却被说没网。现在失败原因必须区分：network 才是服务器连不上。
+    const net = await evalJs(`
+      const old = window.fetch;
+      window.fetch = () => Promise.reject(new Error('NETWORK_DOWN'));
+      let r;
+      try { r = await window.App.checkUpdate(); } finally { window.fetch = old; }
+      return r;
+    `);
+    ok('检查更新失败时 reason 是 network（不冒充 offline）',
+      !!net && net.ok === false && net.reason === 'network', JSON.stringify(net));
+    const hasSiteVer = await evalJs(`return typeof window.App.siteVersion`);
+    ok('APK 的更新源里有官网清单（GitHub 之外还有一条路）', hasSiteVer === 'function', hasSiteVer);
+
+    // 官网清单里带了安装包文件名 → App 直接把用户送到自己的下载地址，
+    // 不用再翻 GitHub（国内打不开）。这里用桩 fetch 验解析与清洗。
+    const man = await evalJs(`
+      const old = window.fetch;
+      window.fetch = async () => new Response(
+        JSON.stringify({ app: '9.9.9', apk: 'whereipaid-v9.9.9.apk', apkBytes: 3215439 }),
+        { status: 200, headers: { 'content-type': 'application/json' } }
+      );
+      let r; try { r = await window.App.siteManifest(); } finally { window.fetch = old; }
+      return r;
+    `);
+    ok('版本清单能读出 APK 文件名', !!man && man.version === '9.9.9'
+      && man.apk === 'whereipaid-v9.9.9.apk', JSON.stringify(man));
+
+    const manBad = await evalJs(`
+      const old = window.fetch;
+      window.fetch = async () => new Response(
+        JSON.stringify({ app: '9.9.9', apk: 'javascript:alert(1)' }), { status: 200 }
+      );
+      let r; try { r = await window.App.siteManifest(); } finally { window.fetch = old; }
+      return r;
+    `);
+    ok('清单里不是文件名的 apk 字段被丢掉', !!manBad && manBad.apk === '', JSON.stringify(manBad));
+
+    // APK 壳里注入了原生桥 JZApp（MainActivity.UpdateBridge）：
+    // 有桥就在 App 内用系统下载器下新包，不再把用户踢到浏览器。
+    const bridge = await evalJs(`
+      window.__apk = '';
+      window.JZApp = { downloadApk(u) { window.__apk = u; } };
+      let r;
+      try {
+        r = window.App.openApkDownload('https://where-i-paid.pages.dev/download/whereipaid-v9.9.9.apk');
+      } finally { delete window.JZApp; }
+      return { r: r, u: window.__apk };
+    `);
+    ok('有原生桥时，APK 走 App 内下载（不跳浏览器）',
+      bridge.r === true && /\/download\/whereipaid-v9\.9\.9\.apk$/.test(bridge.u), JSON.stringify(bridge));
 
     const sponsor = await evalJs(`
       document.querySelector('.view[data-view="settings"] [data-act="sponsor"]').click();

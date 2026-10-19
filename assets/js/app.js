@@ -322,6 +322,13 @@
     // 数据变更时刷新当前视图的统计（写入已由各视图自行处理）
     S.subscribe((evt) => {
       if (evt.type === 'settings') { applyTheme(); paintCoupleTab(); }
+      // 同步写进来的情侣数据：正看着情侣页就自动重画。
+      // 没有这一步，对方记的账要手动刷新整个页面才出现（真机反馈「不刷新无法同步」）。
+      // 只认 action === 'remote'：自己刚记的账，各入口已经在写完后自己刷过了。
+      if (evt && evt.action === 'remote' && current === 'couple') {
+        const vc = global.ViewCouple;
+        if (vc && typeof vc.softRefresh === 'function') vc.softRefresh();
+      }
     });
 
     // Service Worker
@@ -367,6 +374,8 @@
 
   /** 仓库地址：APK 用户的更新出口 */
   const GITHUB_RELEASES = 'https://github.com/ZwZ-1206/where-i-paid/releases/latest';
+  /** 官网（同时也是 APK 的更新源）：GitHub API 在国内经常连不上，不能再当作唯一途径 */
+  const SITE_BASE = 'https://where-i-paid.pages.dev';
 
   /** 是不是装在 APK 壳里 */
   function isApk() {
@@ -397,12 +406,53 @@
 
   /** 服务器上最新的版本（拉一次 sw.js 读 CACHE） */
   async function remoteVersion() {
-    const res = await fetch('sw.js?t=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const txt = await res.text();
-    const m = /CACHE\s*=\s*['"]([^'"]+)['"]/.exec(txt);
-    if (!m) throw new Error('读不到版本号');
-    return m[1].replace('jizhang-', '');
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), 8000) : null;
+    try {
+      const res = await fetch('sw.js?t=' + Date.now(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      const m = /CACHE\s*=\s*['"]([^'"]+)['"]/.exec(txt);
+      if (!m) throw new Error('读不到版本号');
+      return m[1].replace('jizhang-', '');
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /**
+   * 官网上的版本清单（APK 的第一更新源）。
+   *
+   * 为什么不用 GitHub API 当第一源：`api.github.com` 在国内网络下经常直接超时，
+   * 用户明明 5G 满格，界面却报「连不上网」。
+   * 官网是我们自己的域名，连通性更好；GitHub 只作为兜底。
+   * 读的是 `/app/version.json`，由 build-dist.js 写入、build-site.js 补上 APK 文件名。
+   *
+   * @returns {Promise<{version:string, apk:string}>} apk 为空表示官网还没放安装包
+   */
+  async function siteManifest() {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => ctl.abort(), 6000) : null;
+    try {
+      const res = await fetch(SITE_BASE + '/app/version.json?t=' + Date.now(), {
+        cache: 'no-store',
+        signal: ctl ? ctl.signal : undefined,
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const j = await res.json();
+      const v = String(j.app || j.version || '').replace(/^v/i, '');
+      if (!/^\d+\.\d+\.\d+$/.test(v)) throw new Error('读不到版本号');
+      // 只认文件名，防止服务端塞进来一个 javascript: 之类的怪 URL
+      const apk = /^[A-Za-z0-9._-]+\.apk$/.test(String(j.apk || '')) ? String(j.apk) : '';
+      return { version: v, apk };
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  /** 只要版本号（老调用点与测试用） */
+  async function siteVersion() {
+    return (await siteManifest()).version;
   }
 
   /** GitHub 上最新 Release 的 tag（APK 唯一的更新渠道） */
@@ -445,17 +495,25 @@
    * @returns {Promise<{ok, local?, remote?, hasUpdate?, apk?, reason?}>}
    */
   async function checkUpdate() {
-    // ---------- APK：包内版本 vs GitHub 最新 Release ----------
+    // ---------- APK：包内版本 vs 官网（GitHub 兜底） ----------
     if (isApk()) {
       const local = await bundledVersion();
       let remote = '';
+      let apkFile = '';
       try {
-        remote = await githubVersion();
-      } catch (e) {
-        return { ok: false, reason: 'offline', local, apk: true };
+        const m = await siteManifest();
+        remote = m.version;
+        apkFile = m.apk;
+      } catch (e) { /* 官网不通再试 GitHub */ }
+      if (!remote) {
+        try { remote = await githubVersion(); } catch (e) { remote = ''; }
       }
-      if (!local || !remote) return { ok: true, local, remote, hasUpdate: false, apk: true };
-      return { ok: true, local, remote, hasUpdate: isNewer(remote, local), apk: true };
+      // 两个源都拿不到：这是「服务器连不上」，不是「你没网」，文案必须分开
+      if (!remote) return { ok: false, reason: 'network', local, apk: true };
+      // 官网放了安装包就直接给自己域名，不再让用户翻 GitHub
+      const apkUrl = apkFile ? SITE_BASE + '/download/' + apkFile : '';
+      if (!local) return { ok: true, local, remote, hasUpdate: false, apk: true, apkUrl };
+      return { ok: true, local, remote, hasUpdate: isNewer(remote, local), apk: true, apkUrl };
     }
 
     // ---------- 网页 / PWA ----------
@@ -469,7 +527,7 @@
     try {
       remote = await remoteVersion();
     } catch (e) {
-      return { ok: false, reason: 'offline', local, message: e.message };
+      return { ok: false, reason: 'network', local, message: e.message };
     }
     const hasUpdate = !!remote && isNewer(remote, local);
     if (hasUpdate) {
@@ -479,6 +537,28 @@
       } catch (e) { /* 拉取失败也照样能把版本号告诉用户 */ }
     }
     return { ok: true, local, remote, hasUpdate };
+  }
+
+  /**
+   * 下载新版 APK。
+   *
+   * APK 壳里注入了原生桥 `JZApp`（见 MainActivity.UpdateBridge）：有它就用系统下载器
+   * 在 App 内下载，完成后通知栏点一下安装；没有桥（网页版 / 还没更新过的老 APK）
+   * 就退回浏览器，行为和以前一样。
+   *
+   * 只有 `.apk` 才走桥：GitHub Releases 那种页面链接仍交给浏览器。
+   */
+  function openApkDownload(url) {
+    const target = String(url || '');
+    const isApk = /\.apk(?:\?|$)/i.test(target);
+    try {
+      if (isApk && global.JZApp && typeof global.JZApp.downloadApk === 'function') {
+        global.JZApp.downloadApk(target);
+        return true;
+      }
+    } catch (e) { /* 桥异常就退回浏览器，不能让按钮点了没反应 */ }
+    location.href = target;
+    return false;
   }
 
   /** 真的更新：让新 SW 接管，然后刷新页面 */
@@ -500,8 +580,8 @@
   // ------------------------------------------------------------
   // 启动时自动核对版本
   // ------------------------------------------------------------
-  /** 底部一条「有新版本」提示；APK 是去 GitHub 下新包，网页是一键刷新 */
-  function showUpdateBar(remote, local, apk) {
+  /** 底部一条「有新版本」提示；APK 去下载新包（官网优先），网页是一键刷新 */
+  function showUpdateBar(remote, local, apk, apkUrl) {
     const host = $('#toast-host') || (() => {
       const h = U.el('div', { id: 'toast-host', class: 'toast-host' });
       document.body.appendChild(h);
@@ -514,7 +594,7 @@
       '<span class="ub-ic">⬆️</span>' +
       '<span class="ub-txt">发现新版本 <b>' + U.escapeHtml(remote) + '</b>' +
       (local ? '<span class="ub-from">当前 ' + U.escapeHtml(local) + '</span>' : '') + '</span>' +
-      '<button class="ub-go" type="button">' + (apk ? '去 GitHub 下载' : '更新') + '</button>' +
+      '<button class="ub-go" type="button">' + (apk ? '去下载' : '更新') + '</button>' +
       '<button class="ub-later" type="button">以后</button>';
     host.appendChild(bar);
     requestAnimationFrame(() => bar.classList.add('in'));
@@ -526,9 +606,9 @@
     bar.querySelector('.ub-go').addEventListener('click', () => {
       close();
       if (apk) {
-        // 壳里没法自己替换安装包：交给系统浏览器打开 Releases 页，
-        // WebViewClient.shouldOverrideUrlLoading 会把站外链接转出去。
-        location.href = GITHUB_RELEASES;
+        // 壳里没法自己替换安装包：有原生桥就在 App 内下载（通知栏安装），
+        // 没有桥就交给系统浏览器。官网有包用官网，没有才退回 GitHub Releases。
+        openApkDownload(apkUrl || GITHUB_RELEASES);
         return;
       }
       U.toast('正在更新…', 'info');
@@ -595,13 +675,14 @@
     let r;
     try { r = await checkUpdate(); } catch (e) { return; }
     if (!r || !r.ok || !r.hasUpdate) return;
-    showUpdateBar(r.remote, r.local, !!r.apk);
+    showUpdateBar(r.remote, r.local, !!r.apk, r.apkUrl);
   }
 
   global.App = {
     boot, go, refresh, download, applyTheme, refreshTopbar: renderTopbar,
-    checkUpdate, applyUpdate, autoCheckUpdate, currentVersion, bundledVersion, remoteVersion,
-    isApk, GITHUB_RELEASES,
+    checkUpdate, applyUpdate, autoCheckUpdate, currentVersion, bundledVersion, remoteVersion, siteVersion, siteManifest,
+    openApkDownload,
+    isApk, GITHUB_RELEASES, SITE_BASE,
     isTempOrigin, checkTempOrigin, paintCoupleTab,
     get current() { return current; },
   };

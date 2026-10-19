@@ -177,6 +177,35 @@ function ok(cond, name) {
   r = await call(H.pull, '/api/couple/pull?room=' + room + '&since=0', { auth: authKey });
   ok(r.status === 404, '删完之后 pull → ROOM_NOT_FOUND');
 
+  // ---- CORS：APK 是本地壳（origin = appassets.androidplatform.net），
+  //      真正的接口在 pages.dev，跨源 + 自定义头会先发预检。
+  //      没有这一层，APK 里配对永远「连不上服务器」。
+  const mw = await import('../functions/api/couple/_middleware.js');
+  const pre = (origin, method) => mw.onRequest({
+    request: new Request('https://where-i-paid.pages.dev/api/couple/push', {
+      method: method || 'OPTIONS',
+      headers: origin ? { Origin: origin } : {},
+    }),
+    next: async () => new Response('{"ok":true}', {
+      status: 200, headers: { 'content-type': 'application/json' },
+    }),
+  });
+
+  let res = await pre('https://appassets.androidplatform.net');
+  ok(res.status === 204
+    && res.headers.get('access-control-allow-origin') === 'https://appassets.androidplatform.net'
+    && /x-couple-auth/.test(res.headers.get('access-control-allow-headers') || ''),
+  'APK origin 的预检放行，且允许 x-couple-auth 头');
+
+  res = await pre('https://evil.example');
+  ok(res.status === 403 && !res.headers.get('access-control-allow-origin'),
+    '别的站点预检被拒（不回 ACAO）');
+
+  res = await pre('https://appassets.androidplatform.net', 'GET');
+  ok(res.status === 200
+    && res.headers.get('access-control-allow-origin') === 'https://appassets.androidplatform.net',
+  '普通响应也带 ACAO（否则浏览器会丢掉 body）');
+
   console.log('通过 ' + pass + ' / ' + total);
   process.exit(pass === total ? 0 : 1);
 })().catch((e) => {

@@ -196,6 +196,18 @@ await new Promise((r) => setTimeout(r, 600));
     await evalJs(`document.querySelector('.view.active [data-act="scan"]').click()`);
     await wait(700);
     await t('识图弹层打开', () => evalJs(`!!document.querySelector('#scan-pick')`));
+    // 安卓 WebView 里「游离节点 input.click()」不弹选择器，所以必须挂进 DOM 再点。
+    // 这条断言盯的就是那个「从相册选择点了没反应」的回归。
+    await t('「从相册选择」真的触发了文件选择器（input 在 DOM 里、类型 file、收图片）', () => evalJs(`(function(){
+      var old = HTMLInputElement.prototype.click;
+      var seen = null;
+      HTMLInputElement.prototype.click = function(){
+        seen = { type: this.type, accept: this.accept, connected: this.isConnected };
+      };
+      try { document.querySelector('#scan-pick').click(); }
+      finally { HTMLInputElement.prototype.click = old; }
+      return !!seen && seen.type === 'file' && seen.accept === 'image/*' && seen.connected === true;
+    })()`));
     await t('有引擎说明', () => evalJs(`!!document.querySelector('.scan-engine')`));
     await t('有使用提示', () => evalJs(`!!document.querySelector('.scan-tips')`));
     await t('未选图时点识别会提示', () => evalJs(`(function(){
@@ -209,6 +221,30 @@ await new Promise((r) => setTimeout(r, 600));
       return true;
     })()`));
     await wait(600);
+
+    // 同一个根因的另一处：导入账单的「从文件选择」以前也是游离 input.click()
+    await t('「导入账单 → 从文件选择」也真的触发了文件选择器', async () => {
+      await evalJs(`(function(){ App.go('add'); return 1; })()`);
+      await wait(500);
+      await evalJs(`document.querySelector('.view.active [data-act="bill"]').click()`);
+      await wait(700);
+      const good = await evalJs(`(function(){
+        var old = HTMLInputElement.prototype.click, seen = null;
+        HTMLInputElement.prototype.click = function(){
+          seen = { type: this.type, accept: this.accept, connected: this.isConnected };
+        };
+        try { document.querySelector('#bill-pick').click(); }
+        finally { HTMLInputElement.prototype.click = old; }
+        return !!seen && seen.type === 'file' && /csv/.test(seen.accept) && seen.connected === true;
+      })()`);
+      await evalJs(`(function(){
+        var b = document.querySelectorAll('#sheet-root .sheet-close');
+        if (b.length) b[b.length - 1].click();
+        return 1;
+      })()`);
+      await wait(400);
+      return good;
+    });
 
     // ---------- 6. 识图引擎设置 ----------
     console.log('\n=== 6. 识图引擎设置 ===');

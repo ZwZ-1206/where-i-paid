@@ -5,7 +5,7 @@
  *       已改为网络优先。 */
 'use strict';
 
-const CACHE = 'jizhang-v1.18.5';
+const CACHE = 'jizhang-v1.18.11';
 
 const ASSETS = [
   './',
@@ -48,7 +48,7 @@ const ASSETS = [
 // 注意：index.html 里引用资源带 ?v=1.17.1 查询串，所以必须拿 pathname 去匹配，
 // 不能拿完整 URL —— 否则 'app.js?v=1.17.1' 不以 '.js' 结尾，规则失效，
 // 脚本会被当成「静态资源」走缓存优先，改完代码用户刷新也拿不到新版。
-const NET_FIRST = /\.(?:js|css|html|webmanifest)$/i;
+const NET_FIRST = /\.(?:js|css|html|webmanifest|json)$/i;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

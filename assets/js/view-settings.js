@@ -309,8 +309,8 @@
       </div>
 
       <div class="center small muted" style="padding:18px 0 8px;line-height:1.8">
-        花哪儿了 v1.8.1<br/>
-        数据仅保存在本机浏览器，不上传服务器
+        花哪儿了 <span data-ver-foot>v—</span><br/>
+        个人账本只存本机 · 情侣账加密同步
       </div>
     `;
 
@@ -1566,15 +1566,21 @@
   // ------------------------------------------------------------
   function verLabel(v) { return v ? v : '未知'; }
 
-  /** 把当前版本号填到「检查更新」那一行（APK 读包内 sw.js，网页读缓存名） */
+  /** 把当前版本号填到「检查更新」那一行和页脚（APK 读包内 sw.js，网页读缓存名） */
   async function syncVersion(root) {
     const el = root.querySelector('[data-ver]');
-    if (!el || !global.App) return;
+    const foot = root.querySelector('[data-ver-foot]');
+    if ((!el && !foot) || !global.App) return;
     try {
       let v = '';
       if (App.isApk && App.isApk() && App.bundledVersion) v = await App.bundledVersion();
       else if (App.currentVersion) v = await App.currentVersion();
-      if (v) el.textContent = v;
+      if (!v) return;
+      // currentVersion/bundledVersion 返回的是缓存名去掉前缀，可能自带一个 v。
+      // 页脚以前写死 "v1.8.1"、跟上面「当前版本」对不上；现在两处都从这一个数来。
+      const plain = String(v).replace(/^v/i, '');
+      if (el) el.textContent = 'v' + plain;
+      if (foot) foot.textContent = 'v' + plain;
     } catch (e) { /* 忽略 */ }
   }
 
@@ -1584,10 +1590,20 @@
     const setState = (txt) => { if (state) state.textContent = txt; };
     setState('检查中…');
     let r;
-    try { r = await App.checkUpdate(); } catch (e) { r = { ok: false, reason: 'offline' }; }
+    try { r = await App.checkUpdate(); } catch (e) { r = { ok: false, reason: 'network' }; }
     if (!r.ok) {
-      if (r.reason === 'unsupported') { setState('不支持'); U.toast('这个浏览器不支持离线更新', 'error'); }
-      else { setState('连不上'); U.toast('现在连不上网，联网后再试', 'error'); }
+      if (r.reason === 'unsupported') { setState('不支持'); U.toast('这个浏览器不支持离线更新', 'error'); return; }
+      // 「连不上」是服务器连不上，不是用户没网 —— 别把锅甩给手机信号。
+      // 国内 api.github.com 经常超时，但手机 5G 满格，这句旧文案会让人以为是自己断网。
+      setState('连不上服务器');
+      const go = await UI.confirm({
+        title: '查不到新版本',
+        desc: '更新服务器（官网 / GitHub）这次没连上。' +
+          '国内网络访问 GitHub 经常超时，这和你的手机是否联网无关。<br/><br/>' +
+          '可以过一会儿再试，或者直接打开官网看看有没有新版。',
+        okText: '打开官网', cancelText: '知道了',
+      });
+      if (go) location.href = (App.SITE_BASE || 'https://where-i-paid.pages.dev') + '/';
       return;
     }
     const verEl = root.querySelector('[data-ver]');
@@ -1599,17 +1615,18 @@
     }
     setState('有新版本');
 
-    // APK：壳没法自己换安装包，只能把用户送去 GitHub Releases 下新包
+    // APK：壳没法自己换安装包，只能把用户送去下载新包。
+    // 官网有包就给自己域名（国内能打开），没有才退回 GitHub Releases。
     if (r.apk) {
       const go = await UI.confirm({
         title: `发现新版本 ${verLabel(r.remote)}`,
         desc: `你现在装的是 ${verLabel(r.local)}。<br/><br/>` +
-          '安卓版的新包要重新下载安装：点「去 GitHub 下载」后用浏览器打开，' +
+          '安卓版的新包要重新下载安装：点下面的按钮，' +
           '下载 <b>' + U.escapeHtml('whereipaid-v' + String(r.remote).replace(/^v/i, '') + '.apk') + '</b> 覆盖安装即可。' +
           '<br/><span style="color:var(--text-3)">覆盖安装不会动你的账目；保险起见可以先「导出备份」。</span>',
-        okText: '去 GitHub 下载', cancelText: '等会儿',
+        okText: r.apkUrl ? '下载新版本' : '去 GitHub 下载', cancelText: '等会儿',
       });
-      if (go) location.href = App.GITHUB_RELEASES;
+      if (go) App.openApkDownload(r.apkUrl || App.GITHUB_RELEASES);
       return;
     }
 
@@ -2277,31 +2294,29 @@
   }
 
   function doRestore() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json,application/json';
-    input.addEventListener('change', () => {
-      const f = input.files && input.files[0];
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const parsed = JSON.parse(String(reader.result));
-          const ok = await UI.confirm({
-            title: '导入备份',
-            desc: '选择导入方式：<br/><b>合并</b>会保留现有数据，只追加新记录；<br/><b>覆盖</b>会清空当前数据。',
-            okText: '合并导入', cancelText: '覆盖导入',
-          });
-          const res = S.importJSON(String(reader.result), ok ? 'merge' : 'replace');
-          App.refresh();
-          U.toast(`导入成功，共 ${res.tx} 笔账目`, 'success');
-        } catch (e) {
-          U.toast(e.message || '导入失败', 'error');
-        }
-      };
-      reader.readAsText(f);
+    // 统一走 U.pickFile：安卓 WebView 里游离的 input.click() 不弹选择器
+    U.pickFile({
+      accept: '.json,application/json',
+      onPick: (f) => {
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const parsed = JSON.parse(String(reader.result));
+            const ok = await UI.confirm({
+              title: '导入备份',
+              desc: '选择导入方式：<br/><b>合并</b>会保留现有数据，只追加新记录；<br/><b>覆盖</b>会清空当前数据。',
+              okText: '合并导入', cancelText: '覆盖导入',
+            });
+            const res = S.importJSON(String(reader.result), ok ? 'merge' : 'replace');
+            App.refresh();
+            U.toast(`导入成功，共 ${res.tx} 笔账目`, 'success');
+          } catch (e) {
+            U.toast(e.message || '导入失败', 'error');
+          }
+        };
+        reader.readAsText(f);
+      },
     });
-    input.click();
   }
 
   async function doClear() {

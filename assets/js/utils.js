@@ -178,10 +178,45 @@
 
   function clamp(n, a, b) { return Math.min(b, Math.max(a, n)); }
 
+  /**
+   * 弹出系统文件选择器。
+   *
+   * 为什么要有这个函数：安卓 WebView 里，**游离节点**（没挂进文档）的
+   * `<input type=file>` 调用 click() 不会触发 onShowFileChooser，
+   * 表现就是「点了没反应」——识图导入、导入账单、恢复备份全都中招。
+   * 统一在这里挂进 DOM、用完摘掉，避免每个调用点各写一遍还漏掉。
+   *
+   * @param {{accept?:string, multiple?:boolean, onPick?:(file:File|File[])=>void}} opts
+   */
+  function pickFile(opts) {
+    const o = opts || {};
+    const input = document.createElement('input');
+    input.type = 'file';
+    if (o.accept) input.accept = o.accept;
+    if (o.multiple) input.multiple = true;
+    input.style.position = 'fixed';
+    input.style.left = '-9999px';
+    input.style.top = '0';
+    document.body.appendChild(input);
+    let done = false;
+    const drop = () => { if (done) return; done = true; try { input.remove(); } catch (e) { /* 忽略 */ } };
+    input.addEventListener('change', () => {
+      const files = input.files ? Array.from(input.files) : [];
+      drop();
+      if (files.length && o.onPick) {
+        try { o.onPick(o.multiple ? files : files[0]); } catch (e) { console.error(e); }
+      }
+    });
+    // 用户取消时也要摘掉节点（Chrome 系支持 cancel 事件）
+    input.addEventListener('cancel', drop);
+    input.click();
+    return input;
+  }
+
   global.U = {
     pad, money, moneyCompact, toCents, amountToCents,
     startOfDay, endOfDay, ymd, parseYmd, addDays, daysInMonth, dateClamped,
     WEEK_CN, humanDate, fullDate, timeStr, relTime, monthKey, monthLabel,
-    $, $$, el, escapeHtml, toast, vibrate, uid, debounce, clamp,
+    $, $$, el, escapeHtml, toast, vibrate, uid, debounce, clamp, pickFile,
   };
 })(window);

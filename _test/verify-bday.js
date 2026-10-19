@@ -101,6 +101,36 @@ const t = async (name, fn) => {
       return hasMy && hasPeer && hasOpt;
     `));
 
+    await t('生日两栏没有被「配对」按钮的样式压扁（两个日期框各占一半、能完整显示）', () => ev(`
+      const S = window.Store;
+      const keep = S.settings.couple.enabled;
+      S.settings.couple.enabled = false;
+      const v = document.querySelector('.view[data-view="couple"]');
+      window.ViewCouple.setStep('profile');
+      window.ViewCouple.render(v);
+      await new Promise((r) => setTimeout(r, 250));
+      const pair = v.querySelector('.cp-bday-pair');
+      const btns = pair ? pair.querySelectorAll('.cp-input--btn') : [];
+      const r = pair ? pair.getBoundingClientRect() : null;
+      const cs = pair ? getComputedStyle(pair) : null;
+      const out = {
+        cls: pair ? pair.className : '',
+        h: r ? Math.round(r.height) : 0,
+        w: btns[0] ? Math.round(btns[0].getBoundingClientRect().width) : 0,
+        n: btns.length,
+        bgImg: cs ? cs.backgroundImage : '',
+        overflow: pair ? pair.scrollHeight - pair.clientHeight : -1,
+      };
+      S.settings.couple.enabled = keep;
+      window.ViewCouple.setStep('intro');
+      window.ViewCouple.render(v);
+      await new Promise((r) => setTimeout(r, 120));
+      // 旧 bug：容器也叫 .cp-pair，被右上角「配对」胶囊的 30px 高 + 紫色渐变覆盖，
+      // 两个输入框全溢出来。现在要求：类名区分、高度容得下标签+按钮、内容不溢出。
+      return out.n === 2 && out.h >= 60 && out.w >= 120 && out.overflow <= 0
+        && out.bgImg === 'none';
+    `));
+
     await t('选填：不填生日也能点「继续」', () => ev(`
       const v = document.querySelector('.view[data-view="couple"]');
       v.querySelector('#cp-me').value = '小懒';

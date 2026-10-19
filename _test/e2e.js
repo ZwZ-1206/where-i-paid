@@ -9,7 +9,7 @@ const http = require('http');
 const EDGE = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 const PORT = 9335;
 const PROFILE = env.profile('e2e');
-const BASE = 'http://localhost:4173/index.html';
+const BASE = 'http://127.0.0.1:4173/index.html';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function getJSON(p) {

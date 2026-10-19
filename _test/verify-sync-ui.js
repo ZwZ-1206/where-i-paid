@@ -149,6 +149,42 @@ const t = async (name, fn) => {
     return n === 0;
   });
 
+  console.log('\n=== 1.6 同步后自动重画 ===');
+  await t('同步写进来的账会自动出现在页面上（不用手动刷新）', async () => {
+    const before = await ev(`document.querySelector('#view-couple .cp-bill-entry-sub').textContent.replace(/\\s+/g, ' ')`);
+    const added = await ev(`(function(){
+      const book = window.Store.cpBooks()[0];
+      const r = window.Store.applyRemoteOps([{ seq: 995001, kind: 'cptx.add', opId: 'auto1',
+        data: { id: 'auto_sync_1', amount: 4321, ts: Date.now(), type: 'expense',
+                catId: 'food', note: '自动刷新', cpBookId: book.id } }]);
+      return r.txNew;
+    })()`);
+    await sleep(500);
+    const after = await ev(`document.querySelector('#view-couple .cp-bill-entry-sub').textContent.replace(/\\s+/g, ' ')`);
+    return added === 1 && after !== before && /1 笔/.test(after);
+  });
+  await t('自动重画不会把人弹回顶部（滚动位置保留）', async () => {
+    const before = await ev(`(function(){
+      const v = document.querySelector('.view.active');
+      const max = Math.max(0, v.scrollHeight - v.clientHeight);
+      const want = Math.min(260, max);
+      v.scrollTop = want;
+      return { max: max, want: want, now: v.scrollTop };
+    })()`);
+    // 首页内容不够高时这条没有意义（想滚都没得滚），直接当通过
+    if (!before || before.max < 100) return true;
+    await ev(`(function(){
+      const book = window.Store.cpBooks()[0];
+      window.Store.applyRemoteOps([{ seq: 995002, kind: 'cptx.add', opId: 'auto2',
+        data: { id: 'auto_sync_2', amount: 777, ts: Date.now(), type: 'expense',
+                catId: 'food', note: '滚动', cpBookId: book.id } }]);
+      return 1;
+    })()`);
+    await sleep(500);
+    const top = await ev(`document.querySelector('.view.active').scrollTop`);
+    return Math.abs(top - before.want) <= 4;
+  });
+
   console.log('\n=== 2. 未配对面板 ===');
   await click('#view-couple [data-cp="sync"]', 600);
   await t('点灯能打开「双人同步」面板', () => ev(`(function(){

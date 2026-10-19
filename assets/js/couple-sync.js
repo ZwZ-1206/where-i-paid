@@ -24,7 +24,25 @@
   const OUTBOX_KEY = 'syncOutbox';
   const SEQ_KEY = 'syncSeq';
 
-  const API = '/api/couple';
+  /**
+   * API 前缀。
+   *
+   * 网页 / PWA 和官网同源，用相对路径就行。
+   * **APK 不行**：安卓壳加载的是本地资源（origin 是
+   * `https://appassets.androidplatform.net`），相对路径 `/api/couple/...`
+   * 会打到本地资源加载器上，永远 404 —— 表现就是配对页一直「连不上服务器」。
+   * 所以 APK 里要显式指到线上地址，同时 Functions 那边要放行这个 origin 的 CORS。
+   */
+  const API_BASE = (function () {
+    try { return apiBaseFor(location.hostname); } catch (e) { /* 沙箱里没有 location */ }
+    return '';
+  })();
+  const API = API_BASE + '/api/couple';
+
+  /** 哪个 origin 需要打线上接口（抽出来是为了能单测，不依赖真浏览器） */
+  function apiBaseFor(host) {
+    return host === 'appassets.androidplatform.net' ? 'https://where-i-paid.pages.dev' : '';
+  }
   const INFO_ENC = 'jz1/enc/v1';
   const INFO_AUTH = 'jz1/auth/v1';
   const MAX_OUTBOX = 500;
@@ -697,6 +715,7 @@
     OUTBOX_KEY,
     SEQ_KEY,
     API,
+    apiBaseFor,
     ready,
     deriveKey,
     encrypt,

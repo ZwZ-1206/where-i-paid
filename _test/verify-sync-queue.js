@@ -110,6 +110,14 @@ const box = (dev) => dev.CS.state().outbox;
   ok(rBad.code === 'ROOM_NOT_FOUND' || rBad.code === 'BAD_AUTH' || rBad.code === 'BAD_PAIR', '拒绝原因可区分');
   ok(D.CS.state().room === roomBefore, '加入失败不破坏本机已有的配对');
 
+  // ---- APK 的接口地址：本地壳的 origin 必须打到线上，不能走相对路径 ----
+  // 这条是真机反馈出来的：APK 里配对一直「连不上服务器」，
+  // 因为 /api/couple/... 被解析到 appassets.androidplatform.net 上，永远 404。
+  ok(A.CS.apiBaseFor('appassets.androidplatform.net') === 'https://where-i-paid.pages.dev',
+    'APK（本地壳）的接口打到线上域名');
+  ok(A.CS.apiBaseFor('where-i-paid.pages.dev') === '', '网页版仍走同源相对路径');
+  ok(A.CS.apiBaseFor('127.0.0.1') === '', '本地调试也走相对路径');
+
   console.log('通过 ' + pass + ' / ' + total);
   process.exit(pass === total ? 0 : 1);
 })().catch((e) => {

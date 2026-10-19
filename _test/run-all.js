@@ -83,7 +83,9 @@ const SUITES = [
   'e2e.js',
   'verify-couple.js',
   'verify-cplife.js',
+  'verify-bank-csv.js',
   'verify-funds.js',
+  'verify-goal-date.js',
   'verify-fresh.js',
   'verify-new.js',
   'verify-tip-ui.js',
@@ -134,12 +136,12 @@ const SUITES = [
  *   verify-sync-store    +21（M2：记/改/删、基金、资料、换本/关本/删本 都真的入队）
  *   前五个纯 Node（真 Functions + node:sqlite）；UI 与 store 两个用 Edge。
  *
- * 2026-10 从 1012 → 1066：
+ * 2026-10 从 1012 → 1077：
  *   （中间 1059 那版漏记在这里，实际是 sync-live / 协议 v3 那一轮）
  *   verify-sync-ui +7（「TA 刚记了 N 笔」：不出现 / 出现 / 位置 / 累加改口径 / 点击进账单 / 账单页不累计）；
  *   顺带修了 verify-sync-converge 的一条假红：查子串 'note' 会被 base64 随机拼出来。
  */
-const BASELINE = 1066;
+const BASELINE = 1120;
 const args = process.argv.slice(2);
 const only = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const fast = args.indexOf('--fast') >= 0;

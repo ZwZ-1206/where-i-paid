@@ -312,26 +312,25 @@
     const pick = el.querySelector('#scan-pick');
     if (pick) {
       pick.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.addEventListener('change', async () => {
-          const f = input.files && input.files[0];
-          if (!f) return;
-          try {
-            const raw = await readFile(f);
-            uiState.rawUrl = raw;                 // OCR 用原图，别先压
-            uiState.dataUrl = await compress(raw); // 预览 / AI 用压缩图
-            uiState.file = f;
-            uiState.result = null;
-            uiState.error = '';
-            rerender();
-          } catch (e) {
-            uiState.error = e.message || '图片读取失败';
-            rerender();
-          }
+        // 走 U.pickFile：它会先把 input 挂进 DOM 再点，
+        // 否则安卓 WebView 不弹选择器（「从相册选择」点了没反应）
+        U.pickFile({
+          accept: 'image/*',
+          onPick: async (f) => {
+            try {
+              const raw = await readFile(f);
+              uiState.rawUrl = raw;                 // OCR 用原图，别先压
+              uiState.dataUrl = await compress(raw); // 预览 / AI 用压缩图
+              uiState.file = f;
+              uiState.result = null;
+              uiState.error = '';
+              rerender();
+            } catch (e) {
+              uiState.error = e.message || '图片读取失败';
+              rerender();
+            }
+          },
         });
-        input.click();
       });
     }
 

@@ -169,9 +169,24 @@
           });
         });
         body.querySelector('#g-deadline').addEventListener('click', () => {
+          // 目标日期只能是「今天之后」：
+          //   min = 明天 0 点（今天和过去全部灰掉、点不动）
+          //   max = 10 年后（和情侣基金的「攒到哪天」同一个口径，不让人选到 2100 年）
+          // 以前这里没传 min/max，datePicker 的默认 max 是「明天 0 点」，
+          // 结果整块日历里只有今天和过去能点 —— 目标日期挑不到未来，是 bug。
+          const today0 = U.startOfDay(new Date()).getTime();
+          const minTs = today0 + 86400000;
+          const maxTs = today0 + 3650 * 86400000;
+          // 默认值：没设过 → 180 天后；设过但已经不在未来（含今天）→ 也回落到 180 天后，
+          // 否则一打开日历就停在一个灰掉的日子上（默认值和禁用状态自相矛盾）。
+          const d0 = cur.deadline ? U.parseYmd(cur.deadline) : null;
+          const curTs = d0 && !isNaN(d0.getTime()) ? d0.getTime() : NaN;
+          const base = Number.isFinite(curTs) && curTs >= minTs ? curTs : minTs + 179 * 86400000;
           UI.datePicker({
             title: '目标日期',
-            value: cur.deadline ? new Date(cur.deadline).getTime() : Date.now() + 180 * 86400000,
+            value: base,
+            min: minTs,
+            max: maxTs,
             onPick(ts) {
               cur.deadline = U.ymd(new Date(ts));
               body.querySelector('#g-deadline span').textContent = fmtD(cur.deadline);
@@ -185,6 +200,16 @@
           // 情侣金库允许先不定目标金额（target 为 0），普通目标仍要求填
           const isCouple = !!(goal && goal.kind === 'couple');
           if (target <= 0 && !isCouple) { U.toast('请填写目标金额', 'error'); return; }
+          // 提交时再验一次：日历里已经点不动过去，但「编辑一个旧目标」时
+          // deadline 可能是过去存下来的，直接保存等于把非法值又写回去。
+          if (cur.deadline) {
+            const dl = U.parseYmd(cur.deadline);
+            const dlTs = dl && !isNaN(dl.getTime()) ? dl.getTime() : NaN;
+            if (!(dlTs > U.startOfDay(new Date()).getTime())) {
+              U.toast('目标日期要选今天之后的，请重新选一个', 'error');
+              return;
+            }
+          }
           if (goal) {
             S.updateGoal(goal.id, {
               name, target: Math.max(0, target), icon: cur.icon, color: cur.color, deadline: cur.deadline,

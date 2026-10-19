@@ -66,6 +66,16 @@ function copyDir(src, dest, stat) {
   const html = fs.readFileSync(path.join(OUT, 'index.html'), 'utf8');
   const verSet = new Set((html.match(/\?v=([0-9A-Za-z.\-]+)/g) || []).map((x) => x.slice(3)));
 
+  // 给 APK / 网页的「检查更新」用：这是唯一可靠的版本来源。
+  // APK 壳里加载的是本地文件，没法知道线上有没有新版；GitHub API 在国内又常常连不上，
+  // 所以由我们的官网提供 /app/version.json，客户端先读它，GitHub 只作兜底。
+  fs.writeFileSync(
+    path.join(OUT, 'version.json'),
+    JSON.stringify({ app: version || '', built: new Date().toISOString() }, null, 2) + '\n'
+  );
+  stat.count++;
+  stat.bytes += fs.statSync(path.join(OUT, 'version.json')).size;
+
   console.log('');
   console.log('  打包完成 → dist\\');
   console.log('  文件 ' + stat.count + ' 个，共 ' + (stat.bytes / 1024).toFixed(0) + ' KB');
