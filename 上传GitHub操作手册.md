@@ -105,6 +105,33 @@ git push -u origin main
 
 第一次 `push` 会弹 GitHub 登录窗口（Git Credential Manager），授权一次之后就不用了——凭据存在 Windows 凭据管理器里。
 
+### 方式 C：`git push` 被网络挡住时（自动走 API 推送）
+
+有些环境下 `https://github.com` 被代理挡住，`git push` 会直接报：
+
+```
+fatal: unable to access 'https://github.com/.../': Failed to connect to github.com:443
+```
+
+**先判断是不是这个原因**（不用猜）：
+
+```bash
+curl -s -o /dev/null -m 15 -w "github.com %{http_code}\n" https://github.com      # 502/000 = 被挡
+curl -s -o /dev/null -m 15 -w "api.github.com %{http_code}\n" https://api.github.com  # 200 = API 通
+```
+
+这台机器上就是这个情况：`github.com` 返回 502，`api.github.com` 返回 200。既然 API 通，`_tools/push-github-api.js` 就按 GitHub 的 Git Data API 手动推（blob → tree → commit → 更新 ref）：
+
+```bash
+node _tools/push-github-api.js --dry-run   # 先看会传哪些文件
+node _tools/push-github-api.js             # 真的推
+```
+
+`上传到GitHub.bat` 已经内置了这个兜底：`git push` 失败会自动接上 API 推送，你只会看到一行「git push 没成功，改用 GitHub API 推送……」，然后照常完成。
+
+> 令牌从 Git 凭据管理器里读（`git credential fill`），不落盘、不打印。
+> 中文文件名用 `git ls-tree -z` 读，否则路径会被引号包起来变成打不开的鬼东西。
+
 ---
 
 ## 3. 把 APK 挂成 Release

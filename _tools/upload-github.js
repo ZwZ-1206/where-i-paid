@@ -292,10 +292,20 @@ async function main() {
   });
   if (push.status !== 0) {
     console.log('');
-    die('推送没成功。常见原因：',
-      '1) 浏览器授权窗口被关掉了 → 再跑一次\n' +
-      '         2) 建仓库时勾了 README → 删掉仓库重建一个空的\n' +
-      '         3) 网络或代理问题');
+    // 常见原因不是「没授权」，而是 github.com 被代理挡了（502 / 连不上 443），
+    // 而 api.github.com 往往是通的。既然 API 通，就按 Git Data API 手动推。
+    line(C.yellow('  git push 没成功，改用 GitHub API 推送……'));
+    const viaApi = spawnSync(process.execPath, [path.join(ROOT, '_tools', 'push-github-api.js')], {
+      cwd: ROOT,
+      stdio: 'inherit',
+      env: process.env,
+    });
+    if (viaApi.status !== 0) {
+      die('推送没成功。常见原因：',
+        '1) 浏览器授权窗口被关掉了 → 再跑一次\n' +
+        '         2) 建仓库时勾了 README → 删掉仓库重建一个空的\n' +
+        '         3) 网络或代理问题（github.com 不通，但 api.github.com 通时会自动走 API 推送）');
+    }
   }
 
   // ---------- 6. 收尾 ----------

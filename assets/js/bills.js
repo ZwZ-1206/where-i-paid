@@ -62,6 +62,10 @@
       const c = ds.match(/^(\d{4})(\d{2})(\d{2})$/);   // 20260809
       if (c) ds = c[1] + '-' + c[2] + '-' + c[3];
     }
+    // xlsx 里日期列转出来是「2026-06-11 00:00:00」，时分其实是另一列给的，
+    // 这时候要把 00:00:00 换成真实时间，别把用户选的时间丢掉。
+    const midnight = ds.match(/^(\d{4}-\d{1,2}-\d{1,2})[ T]00:00:00$/);
+    if (midnight) ds = midnight[1];
     // 时间列可能是 09:12:33 / 091233 / 09:12
     let tp = t;
     const hm = t.match(/^(\d{2}):?(\d{2})(?::?(\d{2}))?$/);
@@ -227,11 +231,180 @@
   }
 
   // ------------------------------------------------------------
+  // xlsx（Excel 2007+）解析：zip + XML，不引第三方库
+  //
+  // 为什么必须有：工行 / 农行等网银的「下载全部」默认给的就是 Excel，
+  // 而导入入口以前只收 CSV。用户把 Excel 选进来，看到的就是一堆乱码，
+  // 报错还说「认不出表头」——其实是文件类型就不对。
+  // 浏览器自己有 DecompressionStream，能解 zip 里的 deflate，所以不用装库。
+  // ------------------------------------------------------------
+  const ZIP_MAGIC = [0x50, 0x4b, 0x03, 0x04];   // "PK\x03\x04"
+  const OLE_MAGIC = [0xd0, 0xcf, 0x11, 0xe0];   // 旧版 .xls（OLE2 复合文档）
+  const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46];   // "%PDF"
+
+  /** 前 1KB 按 Latin-1 转一下，用于在文件头里找 %PDF（PDF 允许前面有垃圾字节） */
+  function latinishHead(u8) {
+    let s = '';
+    const n = Math.min(u8.length, 1024);
+    for (let i = 0; i < n; i++) s += String.fromCharCode(u8[i]);
+    return s;
+  }
+
+  function startsWith(bytes, sig) {
+    for (let i = 0; i < sig.length; i++) if (bytes[i] !== sig[i]) return false;
+    return true;
+  }
+
+  /** 读 zip 中央目录，返回 Map<文件名, {method, data:Uint8Array}> */
+  function readZip(buf) {
+    const u8 = new Uint8Array(buf);
+    const dv = new DataView(buf);
+    let eo = -1;
+    const from = Math.max(0, u8.length - 65557);
+    for (let i = u8.length - 22; i >= from; i--) {
+      if (u8[i] === 0x50 && u8[i + 1] === 0x4b && u8[i + 2] === 0x05 && u8[i + 3] === 0x06) { eo = i; break; }
+    }
+    if (eo < 0) return new Map();
+    const count = dv.getUint16(eo + 10, true);
+    let p = dv.getUint32(eo + 16, true);
+    const out = new Map();
+    for (let i = 0; i < count && p + 46 <= u8.length; i++) {
+      if (!(u8[p] === 0x50 && u8[p + 1] === 0x4b && u8[p + 2] === 0x01 && u8[p + 3] === 0x02)) break;
+      const method = dv.getUint16(p + 10, true);
+      const csize = dv.getUint32(p + 20, true);
+      const nameLen = dv.getUint16(p + 28, true);
+      const extraLen = dv.getUint16(p + 30, true);
+      const commentLen = dv.getUint16(p + 32, true);
+      const localOff = dv.getUint32(p + 42, true);
+      const name = new TextDecoder('utf-8').decode(u8.subarray(p + 46, p + 46 + nameLen));
+      if (localOff + 30 <= u8.length) {
+        const lNameLen = dv.getUint16(localOff + 26, true);
+        const lExtraLen = dv.getUint16(localOff + 28, true);
+        const start = localOff + 30 + lNameLen + lExtraLen;
+        out.set(name, { method, data: u8.subarray(start, start + csize) });
+      }
+      p += 46 + nameLen + extraLen + commentLen;
+    }
+    return out;
+  }
+
+  /** 解 deflate-raw；method 0 是「没压缩」，直接返回 */
+  async function inflateRaw(entry) {
+    if (entry.method === 0) return entry.data;
+    if (typeof DecompressionStream !== 'function') {
+      throw new Error('当前系统版本解不开 xlsx，请先在电脑上「另存为 CSV」再导入');
+    }
+    const stream = new Blob([entry.data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  }
+
+  /** Excel 日期序号 → 'YYYY-MM-DD HH:mm:ss'（1970-01-01 的序号是 25569） */
+  function serialToYmd(v) {
+    const ms = Math.round((v - 25569) * 86400000);
+    if (!isFinite(ms) || ms < -2208988800000 || ms > 4102444800000) return '';
+    const d = new Date(ms);
+    const p = (n) => (n < 10 ? '0' : '') + n;
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+      ' ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+
+  function decodeEntities(s) {
+    return String(s)
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'").replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+      .replace(/&amp;/g, '&');
+  }
+
+  const xmlTexts = (xml) => {
+    const out = [];
+    const re = /<t[^>]*>([\s\S]*?)<\/t>/g;
+    let m;
+    while ((m = re.exec(xml))) out.push(decodeEntities(m[1]));
+    return out;
+  };
+
+  /** 'AB' → 27（列序号） */
+  const colIndex = (letters) => {
+    let n = 0;
+    for (let i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  };
+
+  /** 解析 worksheet xml → 行数组 */
+  function parseSheetXml(xml, shared) {
+    const rows = [];
+    const rowRe = /<row[^>]*>([\s\S]*?)<\/row>/g;
+    let rm;
+    while ((rm = rowRe.exec(xml))) {
+      const body = rm[1] || '';
+      const cells = [];
+      const cellRe = /<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;
+      let cm;
+      while ((cm = cellRe.exec(body))) {
+        const attrs = cm[1] || '';
+        const inner = cm[2] || '';
+        const ref = /r="([A-Z]+)\d+"/.exec(attrs);
+        const col = ref ? colIndex(ref[1]) : cells.length;
+        const t = /t="([^"]+)"/.exec(attrs);
+        const type = t ? t[1] : '';
+        let val = '';
+        if (type === 's') {
+          const v = /<v>([\s\S]*?)<\/v>/.exec(inner);
+          val = v ? String(shared[Number(v[1])] == null ? '' : shared[Number(v[1])]) : '';
+        } else if (type === 'inlineStr') {
+          val = xmlTexts(inner).join('');
+        } else {
+          const v = /<v>([\s\S]*?)<\/v>/.exec(inner);
+          val = v ? decodeEntities(v[1]) : xmlTexts(inner).join('');
+        }
+        while (cells.length < col) cells.push('');
+        cells[col] = String(val).trim();
+      }
+      if (cells.some((c) => c !== '')) rows.push(cells);
+    }
+    return rows;
+  }
+
+  async function parseXlsx(buf) {
+    const u8 = new Uint8Array(buf);
+    if (startsWith(u8, OLE_MAGIC)) {
+      throw new Error('这是旧版 Excel（.xls）。用 Excel / WPS 打开，「另存为」CSV 或 .xlsx 后再导入。');
+    }
+    const zip = readZip(buf);
+    if (!zip.size) throw new Error('读不到 xlsx 的内容，请先「另存为 CSV」再导入');
+
+    let shared = [];
+    const ss = zip.get('xl/sharedStrings.xml');
+    if (ss) {
+      const xml = new TextDecoder('utf-8').decode(await inflateRaw(ss));
+      const siRe = /<si[^>]*>([\s\S]*?)<\/si>/g;
+      let m;
+      while ((m = siRe.exec(xml))) shared.push(xmlTexts(m[1]).join(''));
+    }
+
+    let sheetName = 'xl/worksheets/sheet1.xml';
+    if (!zip.has(sheetName)) {
+      for (const k of zip.keys()) {
+        if (/^xl\/worksheets\/sheet\d+\.xml$/.test(k)) { sheetName = k; break; }
+      }
+    }
+    const sh = zip.get(sheetName);
+    if (!sh) throw new Error('xlsx 里没有工作表，请先「另存为 CSV」再导入');
+    const xml = new TextDecoder('utf-8').decode(await inflateRaw(sh));
+    return parseSheetXml(xml, shared);
+  }
+
+  // ------------------------------------------------------------
   // 主解析：文本 → { platform, entries, skipped, warning }
   // ------------------------------------------------------------
   function parseText(text) {
-    const rows = parseCSV(text);
-    if (!rows.length) throw new Error('这个文件里没有内容，确认是 CSV 账单文件吗？');
+    return parseRows(parseCSV(text), { engine: 'csv', text });
+  }
+
+  function parseRows(rows, opts) {
+    const o = opts || {};
+    if (!rows.length) throw new Error('这个文件里没有内容，确认是账单文件吗？');
 
     const head = detectHeader(rows);
     if (!head) {
@@ -243,11 +416,25 @@
         .sort((a, b) => b.length - a.length)[0] || [];
       throw new Error('认不出表头：文件里需要一行列名，至少包含「日期/时间」和「金额」。' +
         (cand.length ? '我在前几行里看到这些列：' + cand.slice(0, 10).join('、') + '。' : '') +
-        ' 如果是 Excel 文件，请先另存为 CSV。');
+        ' 如果是 Excel 文件，请另存为 CSV，或直接选 .xlsx 版本。');
     }
 
-    const platform = detectPlatform(text);
+    const platform = detectPlatform(o.text || rows.map((r) => r.join(',')).join('\n'));
     const map = head.map;
+
+    // xlsx 里日期是 Excel 序号（46204 这种），先转成 2026-06-11 再交给 parseTs
+    if (o.fromXlsx) {
+      [map.date, map.time].forEach((ci) => {
+        if (ci == null) return;
+        for (let r = head.idx + 1; r < rows.length; r++) {
+          const v = String(rows[r][ci] == null ? '' : rows[r][ci]).trim();
+          if (/^\d{5}(\.\d+)?$/.test(v)) {
+            const ymd = serialToYmd(Number(v));
+            if (ymd) rows[r][ci] = ymd;
+          }
+        }
+      });
+    }
     const get = (row, k) => {
       const i = map[k];
       if (i == null) return '';
@@ -339,7 +526,7 @@
     if (neutral) warning.push(`已跳过 ${neutral} 笔不计收支的记录（提现 / 还款 / 转账）`);
     if (bad) warning.push(`有 ${bad} 行缺少时间或金额，已跳过`);
 
-    return { platform, entries, skipped: { neutral, bad }, warning: warning.join('；'), engine: 'csv' };
+    return { platform, entries, skipped: { neutral, bad }, warning: warning.join('；'), engine: o.engine || 'csv' };
   }
 
   async function readFile(file) {
@@ -351,12 +538,51 @@
     });
   }
 
+  /**
+   * 按文件内容自动分流：PDF 抽文字、zip 走 Excel、其余按文本 CSV 解析。
+   * @param {ArrayBuffer} buf
+   */
+  async function parseBuffer(buf) {
+    const u8 = new Uint8Array(buf);
+    // 旧版 Excel（OLE2 复合文档）不是 zip，得在 zip 判断之前单独认，
+    // 否则只会得到一句「不是文本账单」，用户不知道该怎么办。
+    if (startsWith(u8, OLE_MAGIC)) {
+      throw new Error('这是旧版 Excel（.xls）。用 Excel / WPS 打开，「另存为」CSV 或 .xlsx 后再导入。');
+    }
+    // PDF：农行的交易流水证明、不少银行的「电子回单」都是这个格式
+    if (startsWith(u8, PDF_MAGIC) || latinishHead(u8).indexOf('%PDF') >= 0) {
+      if (!global.PDFText || typeof global.PDFText.toRows !== 'function') {
+        throw new Error('当前版本读不了 PDF，请更新到最新版后再试。');
+      }
+      const rows = await global.PDFText.toRows(buf);
+      if (!rows.length) {
+        throw new Error('这个 PDF 里没有可复制的文字（多半是扫描件/图片转的 PDF）。' +
+          '可以把它截图，用「识图导入」识别，或让银行导出 CSV / Excel 版本。');
+      }
+      return parseRows(rows, { engine: 'pdf', text: rows.map((r) => r.join(',')).join('\n') });
+    }
+    if (startsWith(u8, ZIP_MAGIC)) {
+      const rows = await parseXlsx(buf);
+      return parseRows(rows, {
+        engine: 'xlsx',
+        fromXlsx: true,
+        text: rows.map((r) => r.join(',')).join('\n'),
+      });
+    }
+    const text = decode(buf);
+    // 选错文件类型时的典型表现：一堆控制字符 / 乱码。提前拦下来，
+    // 别让用户对着一屏乱码猜「我到底选错了什么」。
+    if (/[\u0000-\u0008\u000e-\u001f]/.test(text.slice(0, 4000))) {
+      throw new Error('这个文件不是文本账单（可能是 Excel 二进制文件）。请改用 .xlsx 或 .csv 版本。');
+    }
+    return parseText(text);
+  }
+
   async function parseFile(file) {
     if (!file) throw new Error('没有选择文件');
     if (file.size > 20 * 1024 * 1024) throw new Error('文件太大了（超过 20MB），建议按月分批导入');
     const buf = await readFile(file);
-    const text = decode(buf);
-    return parseText(text);
+    return parseBuffer(buf);
   }
 
   // ------------------------------------------------------------
@@ -499,7 +725,7 @@
           <button class="scan-drop" id="bill-pick" type="button">
             <span class="scan-drop-ic">📄</span>
             <span class="scan-drop-title">选择账单 CSV 文件</span>
-            <span class="scan-drop-desc">微信 / 支付宝 / 工农中建交邮储等银行的流水，CSV 或 TXT</span>
+            <span class="scan-drop-desc">微信 / 支付宝 / 银行的流水，CSV、TXT、xlsx、PDF</span>
             <span class="scan-drop-btn">从文件选择</span>
           </button>
         ` : `
@@ -534,7 +760,7 @@
             <div class="scan-tips-title">怎么导出账单</div>
             <div>· <b>微信</b>：我 → 服务 → 钱包 → 账单 → 常见问题 → 下载账单 → 用于个人对账，账单会发到邮箱</div>
             <div>· <b>支付宝</b>：我的 → 账单 → 右上角 ⋯ → 开具交易流水证明 → 用于个人对账，发到邮箱</div>
-            <div>· <b>银行卡</b>：网银或银行 App 里导出「交易明细」，选 CSV / Excel；Excel 请先「另存为 CSV」再导进来</div>
+            <div>· <b>银行卡</b>：网银或银行 App 里导出「交易明细」，选 CSV 或 Excel 都行（.xlsx 直接导，.xls 要先另存为 CSV）</div>
             <div>· 表头不用改：各家银行的列名（交易日期、借方金额、发生额、摘要…）都能自动认，日期和时间分两列也行
             · 邮箱收到的账单通常是压缩包，解压出 CSV 再选进来</div>
             <div>· 全程在本地解析，文件不会上传到任何服务器</div>
@@ -581,7 +807,7 @@
       pick.addEventListener('click', () => {
         // 统一走 U.pickFile：input 必须先挂进 DOM，否则安卓 WebView 不弹选择器
         U.pickFile({
-          accept: '.csv,.txt,text/csv,text/plain',
+          accept: '.csv,.txt,.xlsx,.pdf,text/csv,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           onPick: async (f) => {
             uiState.busy = true;
             uiState.error = '';
@@ -668,8 +894,9 @@
   }
 
   global.Bills = {
-    open, reset, parseFile, parseText, parseCSV, decode,
+    open, reset, parseFile, parseBuffer, parseText, parseRows, parseCSV, decode, parseXlsx,
     detectHeader, parseAmount, parseTs, detectPlatform, classifyFor, platformName, accountFor,
+    serialToYmd,
     get state() { return uiState; },
   };
 })(window);

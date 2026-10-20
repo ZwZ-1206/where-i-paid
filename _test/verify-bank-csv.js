@@ -192,7 +192,174 @@ const t = async (name, fn) => {
   await t('微信账单仍然 2 笔、收支正确',
     () => wechat.n === 2 && wechat.types[0] === 'expense' && wechat.types[1] === 'income');
 
-  console.log('\n=== 10. 无 JS 异常 ===');
+  console.log('\n=== 10. Excel（.xlsx）直接导入 ===');
+  // 用户实际遇到的：农行/工行网银「下载全部」给的是 Excel，以前只能看到乱码。
+  // 这里在页面里现场造一个最小 xlsx（zip 用「不压缩」方式，正好覆盖 method 0 分支）。
+  const xlsx = await ev(`(async function(){
+    function crc32(bytes){
+      var table = crc32.t;
+      if (!table) {
+        table = crc32.t = [];
+        for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; table[n] = c >>> 0; }
+      }
+      var c = 0xFFFFFFFF;
+      for (var i = 0; i < bytes.length; i++) c = table[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+      return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+    function u16(n){ return [n & 255, (n >>> 8) & 255]; }
+    function u32(n){ return [n & 255, (n >>> 8) & 255, (n >>> 16) & 255, (n >>> 24) & 255]; }
+    function bytes(s){ return Array.from(new TextEncoder().encode(s)); }   // 中文必须按 UTF-8 编码，charCodeAt 会切成乱码
+    function makeZip(files){
+      var locals = [], central = [], offset = 0;
+      files.forEach(function(f){
+        var name = bytes(f.name), crc = crc32(f.data);
+        var local = [].concat([0x50,0x4b,0x03,0x04], u16(20), u16(0), u16(0), u16(0), u16(0),
+          u32(crc), u32(f.data.length), u32(f.data.length), u16(name.length), u16(0), name);
+        locals.push(new Uint8Array(local)); locals.push(f.data);
+        central.push(new Uint8Array([].concat([0x50,0x4b,0x01,0x02], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+          u32(crc), u32(f.data.length), u32(f.data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), name)));
+        offset += local.length + f.data.length;
+      });
+      var cdLen = 0; central.forEach(function(c){ cdLen += c.length; });
+      var eocd = new Uint8Array([].concat([0x50,0x4b,0x05,0x06], u16(0), u16(0), u16(files.length), u16(files.length), u32(cdLen), u32(offset), u16(0)));
+      var total = offset + cdLen + eocd.length;
+      var out = new Uint8Array(total), p = 0;
+      locals.concat(central).forEach(function(b){ out.set(b, p); p += b.length; });
+      out.set(eocd, p);
+      return out.buffer;
+    }
+    // 46306 = 2026-10-11、46307 = 10-12：xlsx 里日期就是这么存的（Excel 序号，1970-01-01 = 25569）
+    var shared = ['交易日期','交易时间','摘要','交易金额','对方姓名','09:12:33','美团外卖','工资','某某科技'];
+    var ss = '<?xml version="1.0"?><sst>' + shared.map(function(s){ return '<si><t>'+s+'</t></si>'; }).join('') + '</sst>';
+    var rows = [
+      '<row r="1">' + 'ABCDE'.split('').map(function(L, i){ return '<c r="'+L+'1" t="s"><v>'+i+'</v></c>'; }).join('') + '</row>',
+      '<row r="2"><c r="A2"><v>46306</v></c><c r="B2" t="s"><v>5</v></c><c r="C2" t="s"><v>6</v></c><c r="D2"><v>-35.5</v></c><c r="E2" t="s"><v>6</v></c></row>',
+      '<row r="3"><c r="A3"><v>46307</v></c><c r="B3" t="s"><v>5</v></c><c r="C3" t="s"><v>7</v></c><c r="D3"><v>8000</v></c></row>'
+    ].join('');
+    var sheet = '<?xml version="1.0"?><worksheet><sheetData>' + rows + '</sheetData></worksheet>';
+    try {
+      var r = await window.Bills.parseBuffer(makeZip([
+        { name: 'xl/sharedStrings.xml', data: new Uint8Array(bytes(ss)) },
+        { name: 'xl/worksheets/sheet1.xml', data: new Uint8Array(bytes(sheet)) }
+      ]));
+      return {
+        n: r.entries.length, engine: r.engine,
+        types: r.entries.map(function(e){ return e.type; }),
+        amounts: r.entries.map(function(e){ return e.amount; }),
+        months: r.entries.map(function(e){ return new Date(e.ts).getMonth() + 1; }),
+        days: r.entries.map(function(e){ return new Date(e.ts).getDate(); }),
+        merchants: r.entries.map(function(e){ return e.merchant; }),
+        error: ''
+      };
+    } catch (e) { return { error: e.message }; }
+  })()`);
+  await t('xlsx 能导入（2 笔）', () => xlsx.n === 2 && xlsx.engine === 'xlsx');
+  await t('xlsx：Excel 日期序号转成了 10 月 11 日', () => xlsx.months[0] === 10 && xlsx.days[0] === 11);
+  await t('xlsx：负数=支出 35.5，工资=收入 8000',
+    () => xlsx.types[0] === 'expense' && xlsx.amounts[0] === 3550 && xlsx.types[1] === 'income' && xlsx.amounts[1] === 800000);
+  await t('xlsx：共享字符串里的商户名认得出', () => xlsx.merchants[0] === '美团外卖');
+
+  const xls = await ev(`(async function(){
+    var b = new Uint8Array(512);
+    [0xD0,0xCF,0x11,0xE0].forEach(function(v,i){ b[i] = v; });
+    try { await window.Bills.parseBuffer(b.buffer); return { error: '没报错' }; }
+    catch (e) { return { error: e.message }; }
+  })()`);
+  await t('旧版 .xls 会被明确拦住并教怎么办', () => /另存为/.test(xls.error || ''));
+
+  console.log('\n=== 11. PDF（农行交易流水）===');
+  // 农行 App 导出的明细就是 PDF。这里现场造一个「银行流水排版」的 PDF：
+  // Type0 + Identity-H 中文字体 + ToUnicode、内容流 FlateDecode、每列一个 Tj。
+  // 造不出来就看不出到底是我们解析器的问题还是文件的问题。
+  const pdfProbe = await ev(`(async function(){
+    function u8(s){ return new TextEncoder().encode(s); }
+    function concat(list){
+      var n = 0; list.forEach(function(b){ n += b.length; });
+      var out = new Uint8Array(n), p = 0;
+      list.forEach(function(b){ out.set(b, p); p += b.length; });
+      return out;
+    }
+    function hex(n, w){ var s = n.toString(16).toUpperCase(); while (s.length < w) s = '0' + s; return s; }
+
+    async function buildPDF(rows){
+      var codes = new Map(), next = 1;
+      function code(ch){ if (!codes.has(ch)) codes.set(ch, next++); return codes.get(ch); }
+      function enc(text){ var h = ''; for (var i = 0; i < text.length; i++) h += hex(code(text[i]), 4); return h; }
+
+      var content = '';
+      rows.forEach(function(cells, ri){
+        var y = 800 - ri * 20;
+        content += 'BT /F1 9 Tf 1 0 0 1 40 ' + y + ' Tm';
+        cells.forEach(function(c, ci){
+          if (ci) content += ' 62 0 Td';
+          content += ' <' + enc(c) + '> Tj';
+        });
+        content += ' ET\\n';
+      });
+
+      var deflated = new Uint8Array(0);
+      if (content) {
+        var st = new Blob([u8(content)]).stream().pipeThrough(new CompressionStream('deflate'));
+        deflated = new Uint8Array(await new Response(st).arrayBuffer());
+      }
+
+      var bf = '';
+      codes.forEach(function(v, ch){ bf += '<' + hex(v, 4) + '> <' + hex(ch.charCodeAt(0), 4) + '>\\n'; });
+      var cmap = '/CIDInit /ProcSet findresource begin\\n12 dict begin\\nbegincmap\\n' +
+        '1 begincodespacerange\\n<0000> <FFFF>\\nendcodespacerange\\n' +
+        codes.size + ' beginbfchar\\n' + bf + 'endbfchar\\nendcmap\\nend\\nend\\n';
+
+      return concat([
+        u8('%PDF-1.4\\n'),
+        u8('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\\n'),
+        u8('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\\n'),
+        u8('3 0 obj << /Type /Page /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj\\n'),
+        u8('4 0 obj << /Length ' + deflated.length + ' /Filter /FlateDecode >> stream\\n'),
+        deflated,
+        u8('\\nendstream endobj\\n'),
+        u8('5 0 obj << /Type /Font /Subtype /Type0 /BaseFont /ABCDEE+SimSun /Encoding /Identity-H /ToUnicode 6 0 R >> endobj\\n'),
+        u8('6 0 obj << /Length ' + u8(cmap).length + ' >> stream\\n' + cmap + 'endstream endobj\\n'),
+        u8('trailer << /Root 1 0 R >>\\n%%EOF')
+      ]);
+    }
+
+    var out = {};
+    try {
+      var buf = await buildPDF([
+        ['交易日期','交易时间','摘要','交易金额','对方姓名'],
+        ['20261001','09:12:33','消费','-35.50','美团外卖'],
+        ['20261002','10:00:00','工资','8000.00','某某科技']
+      ]);
+      var r = await window.Bills.parseBuffer(buf.buffer);
+      out = {
+        n: r.entries.length, engine: r.engine,
+        types: r.entries.map(function(e){ return e.type; }),
+        amounts: r.entries.map(function(e){ return e.amount; }),
+        days: r.entries.map(function(e){ return new Date(e.ts).getDate(); }),
+        hours: r.entries.map(function(e){ return new Date(e.ts).getHours(); }),
+        merchants: r.entries.map(function(e){ return e.merchant; }),
+        error: ''
+      };
+    } catch (e) { out.error = e.message; }
+
+    // 扫描件：有页面、没有文字层
+    try {
+      var empty = await buildPDF([]);
+      await window.Bills.parseBuffer(empty.buffer);
+      out.scan = '没报错';
+    } catch (e2) { out.scan = e2.message; }
+    return out;
+  })()`);
+  await t('PDF 能读出 2 笔（engine=pdf）', () => pdfProbe.n === 2 && pdfProbe.engine === 'pdf');
+  await t('PDF：文字按坐标还原成行，日期时间都对', () => pdfProbe.days[0] === 1 && pdfProbe.hours[0] === 9);
+  await t('PDF：收支方向与金额正确',
+    () => pdfProbe.types[0] === 'expense' && pdfProbe.amounts[0] === 3550
+      && pdfProbe.types[1] === 'income' && pdfProbe.amounts[1] === 800000);
+  await t('PDF：各列被正确切开，商户名没粘一起', () => pdfProbe.merchants[0] === '美团外卖');
+  await t('扫描件 PDF 会说清楚「没有文字层」（不是一句认不出）',
+    () => /扫描件|没有可复制/.test(pdfProbe.scan || ''));
+
+  console.log('\n=== 12. 无 JS 异常 ===');
   await t('整个过程没有未捕获异常', () => jsErrors.length === 0);
   if (jsErrors.length) console.log('    ' + jsErrors.slice(0, 2).join('\n    '));
 

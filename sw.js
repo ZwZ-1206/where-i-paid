@@ -5,7 +5,7 @@
  *       已改为网络优先。 */
 'use strict';
 
-const CACHE = 'jizhang-v1.18.11';
+const CACHE = 'jizhang-v1.18.13';
 
 const ASSETS = [
   './',
@@ -23,6 +23,7 @@ const ASSETS = [
   './assets/js/extras.js',
   './assets/js/tips.js',
   './assets/js/scan.js',
+  './assets/js/pdf-text.js',
   './assets/js/bills.js',
   './assets/js/remind.js',
   './assets/js/couple-sync.js',
