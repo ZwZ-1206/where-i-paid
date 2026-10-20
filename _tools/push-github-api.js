@@ -149,6 +149,18 @@ function loadToken() {
     { sha: newCommit.sha, force: false });
 
   console.log('完成  ' + (updated.ref || branch) + ' → ' + newCommit.sha.slice(0, 8));
+
+  // 6) 把本地对齐到远端。
+  // API 推送是在远端重建了一个提交，本地历史并没有跟上。若不处理，下次 git push
+  // 会一直报 "rejected / fetch first"（历史分叉），于是每次都只能靠 API 兜底，
+  // 而且看门狗脚本永远显示「推送没成功」。这里只移动分支指针、重置索引，
+  // 不碰工作区文件，所以不会丢任何代码。
+  const fetched = git(['fetch', 'origin']);
+  if (fetched.ok) {
+    git(['reset', '--soft', 'origin/' + branch]);
+    git(['reset']);
+    console.log('本地已对齐远端，下次可直接 git push');
+  }
 })().catch((e) => {
   console.error('失败：' + e.message);
   process.exit(1);
