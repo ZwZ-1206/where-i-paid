@@ -315,6 +315,41 @@
   }
 
   /**
+   * 按页面顺序排出内容流的对象号。
+   *
+   * 为什么必须按页分开：所有页的坐标都是「从页面左下角算起」，第 1 页的标题和
+   * 第 7 页的标题 y 值一模一样。不按页分开就会把 7 页的同一行叠在一起 ——
+   * 真实农行 PDF 就是这么被读成「标题重复 7 次、5 笔的日期粘成一串」的。
+   */
+  function contentOrder(objs) {
+    const out = [];
+    const push = (num) => {
+      const o = objs.get(num);
+      if (!o) return;
+      const m = /\/Contents\s*(\[[^\]]*\]|\d+\s+\d+\s+R)/.exec(o.dict) || /\/Contents\s*(\d+)\s+\d+\s+R/.exec(o.dict);
+      if (!m) return;
+      const refs = m[1].match(/(\d+)\s+\d+\s+R/g) || [];
+      refs.forEach((r) => out.push(Number(r.split(/\s+/)[0])));
+    };
+    // 真页序：/Pages 里的 /Kids
+    const kids = [];
+    for (const [, o] of objs) {
+      const m = /\/Kids\s*\[([\s\S]*?)\]/.exec(o.dict);
+      if (m) {
+        const found = m[1].match(/(\d+)\s+\d+\s+R/g) || [];
+        found.forEach((r) => kids.push(Number(r.split(/\s+/)[0])));
+      }
+    }
+    if (kids.length) kids.forEach(push);
+    else {
+      const pages = [];
+      for (const [n, o] of objs) if (/\/Type\s*\/Page\b/.test(o.dict)) pages.push(n);
+      pages.sort((a, b) => a - b).forEach(push);
+    }
+    return [...new Set(out)];
+  }
+
+  /**
    * @param {ArrayBuffer} buf
    * @returns {Promise<Array<Array<string>>>} 行 × 列
    */
@@ -381,17 +416,33 @@
       while ((p = pairRe.exec(m[1]))) byName['/' + p[1]] = fonts[Number(p[2])] || null;
     }
 
-    const runs = [];
-    for (const [, o] of objs) {
-      if (!o.data) continue;
-      if (/\/Subtype\s*\/Image/.test(o.dict)) continue;
+    const order = contentOrder(objs);
+    const rows = [];
+    const parsed = new Set();
+
+    const parseOne = async (num, o) => {
+      if (!o || !o.data) return;
+      if (/\/Subtype\s*\/Image/.test(o.dict)) return;
       const inf = await inflate(o.data);
-      const cs = inf ? latin1(inf) : null;
-      if (!cs) continue;
-      if (cs.indexOf('BT') < 0 || (!/\bTj\b|\bTJ\b/.test(cs) && cs.indexOf("'") < 0)) continue;
-      try { parseContent(cs, byName, runs); } catch (e) { /* 单页坏了不影响其它页 */ }
+      if (!inf) return;
+      const cs = latin1(inf);
+      if (cs.indexOf('BT') < 0 || (!/\bTj\b|\bTJ\b/.test(cs) && cs.indexOf("'") < 0)) return;
+      const pageRuns = [];
+      try { parseContent(cs, byName, pageRuns); } catch (e) { return; }
+      // 一页一批：坐标不能跨页混在一起
+      toRows(pageRuns).forEach((r) => rows.push(r));
+    };
+
+    for (const num of order) {
+      await parseOne(num, objs.get(num));
+      parsed.add(num);
     }
-    return toRows(runs);
+    // 没被页面引用到的内容流（很少见），按对象号补在后面
+    for (const [num, o] of objs) {
+      if (parsed.has(num)) continue;
+      await parseOne(num, o);
+    }
+    return rows;
   }
 
   global.PDFText = { toRows: toRowsFromBuffer, parseCMap, hexToText };

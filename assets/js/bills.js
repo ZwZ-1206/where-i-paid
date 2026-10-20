@@ -444,6 +444,7 @@
     const entries = [];
     let neutral = 0;
     let bad = 0;
+    let cont = 0;   // PDF 里商户名/附言太长会换到下一行，这种行不该算「坏行」
 
     // 没有借方/贷方列、也没有方向列时，靠摘要里的字眼判断收入还是支出
     const IN_WORDS = /收入|存入|转入|入账|工资|代发|薪酬|利息|结息|分红|退款|退货|报销|奖金|补贴|收款|汇入/;
@@ -454,6 +455,8 @@
       if (!row || row.length < 2) continue;
       const joined = row.join(' ');
       if (/^-{3,}|^={3,}/.test(joined.trim())) continue;
+      // 每一页都会重复一遍表头，别把它当成数据行（否则「跳过 N 行」会吓人）
+      if (/(交易日期|记账日期|交易时间)/.test(joined) && /(金额|发生额)/.test(joined)) continue;
 
       // 日期与时间可能分列（农行 / 邮储 / 建行都这样），拼起来再解析
       const ts = parseTs(combineDateTime(
@@ -467,8 +470,12 @@
       let raw = 0;
       if (!amtOut && !amtIn) raw = parseAmount(get(row, 'amount'));
       const amount = amtOut || amtIn || Math.abs(raw);
-      if (!amount) { bad++; continue; }
-      if (!ts) { bad++; continue; }
+      if (!amount && !ts) {
+        // 既没金额也没日期：多半是上一笔的续行（对手名换行），不是坏数据
+        if (o.engine === 'pdf') { cont++; continue; }
+        bad++; continue;
+      }
+      if (!amount || !ts) { bad++; continue; }
 
       // 收支方向
       let type;
@@ -482,6 +489,9 @@
         type = (amtIn && !amtOut) ? 'income' : 'expense';
       } else if (raw < 0) {
         type = 'expense';
+      } else if (/^[\s¥￥]*\+/.test(get(row, 'amount'))) {
+        // 银行流水里「+」就是进账（工资、现存、退款…），不能靠摘要猜
+        type = 'income';
       } else {
         // 一列正数金额 + 没有方向列：只能看摘要/交易类型/对方
         const probe = [get(row, 'kind'), get(row, 'product'), get(row, 'merchant'), get(row, 'note')].join(' ');
@@ -526,7 +536,7 @@
     if (neutral) warning.push(`已跳过 ${neutral} 笔不计收支的记录（提现 / 还款 / 转账）`);
     if (bad) warning.push(`有 ${bad} 行缺少时间或金额，已跳过`);
 
-    return { platform, entries, skipped: { neutral, bad }, warning: warning.join('；'), engine: o.engine || 'csv' };
+    return { platform, entries, skipped: { neutral, bad, cont }, warning: warning.join('；'), engine: o.engine || 'csv' };
   }
 
   async function readFile(file) {

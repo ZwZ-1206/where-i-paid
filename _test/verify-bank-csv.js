@@ -281,27 +281,31 @@ const t = async (name, fn) => {
     }
     function hex(n, w){ var s = n.toString(16).toUpperCase(); while (s.length < w) s = '0' + s; return s; }
 
-    async function buildPDF(rows){
+    // pages: [[[单元格...], ...], ...] —— 每页一组行。多页是必须测的：
+    // 所有页的坐标都从页面左下角算起，不按页分开就会把两页的同一行叠成一行。
+    async function buildPDF(pages){
       var codes = new Map(), next = 1;
       function code(ch){ if (!codes.has(ch)) codes.set(ch, next++); return codes.get(ch); }
       function enc(text){ var h = ''; for (var i = 0; i < text.length; i++) h += hex(code(text[i]), 4); return h; }
 
-      var content = '';
-      rows.forEach(function(cells, ri){
-        var y = 800 - ri * 20;
-        content += 'BT /F1 9 Tf 1 0 0 1 40 ' + y + ' Tm';
-        cells.forEach(function(c, ci){
-          if (ci) content += ' 62 0 Td';
-          content += ' <' + enc(c) + '> Tj';
+      async function contentOf(rows){
+        var s = '';
+        rows.forEach(function(cells, ri){
+          var y = 800 - ri * 20;
+          s += 'BT /F1 9 Tf 1 0 0 1 40 ' + y + ' Tm';
+          cells.forEach(function(c, ci){
+            if (ci) s += ' 62 0 Td';
+            s += ' <' + enc(c) + '> Tj';
+          });
+          s += ' ET\\n';
         });
-        content += ' ET\\n';
-      });
-
-      var deflated = new Uint8Array(0);
-      if (content) {
-        var st = new Blob([u8(content)]).stream().pipeThrough(new CompressionStream('deflate'));
-        deflated = new Uint8Array(await new Response(st).arrayBuffer());
+        if (!s) return new Uint8Array(0);
+        var st = new Blob([u8(s)]).stream().pipeThrough(new CompressionStream('deflate'));
+        return new Uint8Array(await new Response(st).arrayBuffer());
       }
+
+      var streams = [];
+      for (var pi = 0; pi < pages.length; pi++) streams.push(await contentOf(pages[pi]));
 
       var bf = '';
       codes.forEach(function(v, ch){ bf += '<' + hex(v, 4) + '> <' + hex(ch.charCodeAt(0), 4) + '>\\n'; });
@@ -309,26 +313,35 @@ const t = async (name, fn) => {
         '1 begincodespacerange\\n<0000> <FFFF>\\nendcodespacerange\\n' +
         codes.size + ' beginbfchar\\n' + bf + 'endbfchar\\nendcmap\\nend\\nend\\n';
 
-      return concat([
+      var fontNum = 3 + pages.length * 2, cmapNum = fontNum + 1;
+      var parts = [
         u8('%PDF-1.4\\n'),
-        u8('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\\n'),
-        u8('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\\n'),
-        u8('3 0 obj << /Type /Page /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >> endobj\\n'),
-        u8('4 0 obj << /Length ' + deflated.length + ' /Filter /FlateDecode >> stream\\n'),
-        deflated,
-        u8('\\nendstream endobj\\n'),
-        u8('5 0 obj << /Type /Font /Subtype /Type0 /BaseFont /ABCDEE+SimSun /Encoding /Identity-H /ToUnicode 6 0 R >> endobj\\n'),
-        u8('6 0 obj << /Length ' + u8(cmap).length + ' >> stream\\n' + cmap + 'endstream endobj\\n'),
-        u8('trailer << /Root 1 0 R >>\\n%%EOF')
-      ]);
+        u8('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\\n')
+      ];
+      var kids = [];
+      for (var j = 0; j < pages.length; j++) {
+        var pageNum = 3 + j * 2, contNum = pageNum + 1;
+        kids.push(pageNum + ' 0 R');
+        parts.push(u8(pageNum + ' 0 obj << /Type /Page /Resources << /Font << /F1 ' + fontNum + ' 0 R >> >> /Contents ' + contNum + ' 0 R >> endobj\\n'));
+        parts.push(u8(contNum + ' 0 obj << /Length ' + streams[j].length + ' /Filter /FlateDecode >> stream\\n'));
+        parts.push(streams[j]);
+        parts.push(u8('\\nendstream endobj\\n'));
+      }
+      parts.push(u8('2 0 obj << /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + pages.length + ' >> endobj\\n'));
+      parts.push(u8(fontNum + ' 0 obj << /Type /Font /Subtype /Type0 /BaseFont /ABCDEE+SimSun /Encoding /Identity-H /ToUnicode ' + cmapNum + ' 0 R >> endobj\\n'));
+      parts.push(u8(cmapNum + ' 0 obj << /Length ' + u8(cmap).length + ' >> stream\\n' + cmap + 'endstream endobj\\n'));
+      parts.push(u8('trailer << /Root 1 0 R >>\\n%%EOF'));
+      return concat(parts);
     }
 
     var out = {};
     try {
+      // 两页、每页各一笔：坐标完全一样，就是真实农行 PDF 的形态
       var buf = await buildPDF([
-        ['交易日期','交易时间','摘要','交易金额','对方姓名'],
-        ['20261001','09:12:33','消费','-35.50','美团外卖'],
-        ['20261002','10:00:00','工资','8000.00','某某科技']
+        [['交易日期','交易时间','摘要','交易金额','对方姓名'],
+         ['20261001','09:12:33','消费','-35.50','美团外卖']],
+        [['交易日期','交易时间','摘要','交易金额','对方姓名'],
+         ['20261002','10:00:00','现存','+8000.00','某某科技']]
       ]);
       var r = await window.Bills.parseBuffer(buf.buffer);
       out = {
@@ -344,13 +357,15 @@ const t = async (name, fn) => {
 
     // 扫描件：有页面、没有文字层
     try {
-      var empty = await buildPDF([]);
+      var empty = await buildPDF([[]]);   // 一页、没有任何文字（扫描件）
       await window.Bills.parseBuffer(empty.buffer);
       out.scan = '没报错';
     } catch (e2) { out.scan = e2.message; }
     return out;
   })()`);
   await t('PDF 能读出 2 笔（engine=pdf）', () => pdfProbe.n === 2 && pdfProbe.engine === 'pdf');
+  await t('两页的同一行不会串成一笔（按页拆分，坐标不跨页混）',
+    () => pdfProbe.days && pdfProbe.days.length === 2 && pdfProbe.days[0] === 1 && pdfProbe.days[1] === 2);
   await t('PDF：文字按坐标还原成行，日期时间都对', () => pdfProbe.days[0] === 1 && pdfProbe.hours[0] === 9);
   await t('PDF：收支方向与金额正确',
     () => pdfProbe.types[0] === 'expense' && pdfProbe.amounts[0] === 3550

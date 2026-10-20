@@ -141,7 +141,7 @@ const SUITES = [
  *   verify-sync-ui +7（「TA 刚记了 N 笔」：不出现 / 出现 / 位置 / 累加改口径 / 点击进账单 / 账单页不累计）；
  *   顺带修了 verify-sync-converge 的一条假红：查子串 'note' 会被 base64 随机拼出来。
  */
-const BASELINE = 1130;
+const BASELINE = 1131;
 const args = process.argv.slice(2);
 const only = (args.find((a) => a.startsWith('--only=')) || '').slice(7);
 const fast = args.indexOf('--fast') >= 0;
