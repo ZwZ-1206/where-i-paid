@@ -12,9 +12,10 @@ _test/*.jpg
 dist/
 
 # APK 产物（android/make-apk.js 生成）
-# 构建目录整体忽略，但正式发行包留一份在仓库里，方便别人直接点下载
-dist-apk/*
-!dist-apk/*.apk
+# 纯本地构建目录，整体不进仓库。
+# 对外下载只保留 site/download/ 下那一份（官网按钮指向它，build-site.js 会从
+# dist-apk/ 拷过去），这样不用每发一版回来改白名单，也不会堆一堆历史包。
+dist-apk/
 
 # 依赖
 node_modules/
@@ -55,6 +56,22 @@ android/.kotlin/
 # 推仓库用的脚本，跟 App 本身无关，且含本机环境信息
 上传到GitHub.bat
 _tools/upload-github.js
+_tools/push-github-api.js
+
+# ---------- 内部文档：只留本地，不公开 ----------
+# 施工清单 / 任务书 / 评审报告 / 设计方案 / 操作手册，都是给自己看的工作稿
+从源码到上线-施工清单.md
+上传GitHub操作手册.md
+更新上传操作手册.md
+美术设计说明.md
+花哪儿了-*.md
+情侣账本-*.md
+
+# 推广素材（海报、实机截图），只在需要发布时用，不进仓库
+社交推广图/
+
+# 内部技能包
+huanaer-release.skill.zip
 
 # 官网里内嵌的 App（build-site.js 生成）
 site/app/

@@ -513,9 +513,7 @@ Jizhang/
 ├── 打包发布.bat               双击生成 dist/（发布包，35 个文件）
 ├── build-dist.js              打包脚本
 ├── 使用说明.md                 写给使用者的完整说明书（可直接发给用户）
-├── 花哪儿了-双端打包操作手册.md  从源码到 APK / 网页版的全流程与报错对照表（首次装环境看这份）
-├── 更新上传操作手册.md         每次发版的固定动作：升版本 → 测试 → 出 APK → 建官网 → 部署 → 核对
-├── dist-apk/                   已签名的安卓安装包（build-site 会把同版本的拷进 site/download/）
+├── dist-apk/                   本地构建目录（不进仓库）；build-site 会把同版本包拷进 site/download/
 ├── site/                       官网静态页（Cloudflare Pages 托管）
 ├── assets/
 │   ├── css/app.css            全部样式（含深色主题）
