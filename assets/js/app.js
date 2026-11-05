@@ -224,6 +224,10 @@
   function boot() {
     S.init();
 
+    // 桌面小组件（安卓 APK）：有 JZWidget 桥才接线。
+    // 网页版 / iOS 上 supported() 直接返回 false，这里一行副作用都不会有。
+    try { if (global.Widget) global.Widget.install(); } catch (e) { /* 小组件坏了不能影响启动 */ }
+
     // 双人同步：已配对就开前台轮询，并在回到前台/联网时补一次。
     // 全程 try/catch —— 同步挂了不能影响记账，这是这套东西的底线。
     try {
@@ -306,6 +310,11 @@
     setTimeout(() => {
       try { if (global.Remind) global.Remind.showBanner(); } catch (e) { /* 忽略 */ }
     }, 2400);
+
+    // 数据安全：主屏安装引导 + 定期备份提醒（错开时间，别和上面的提醒叠在一起）
+    setTimeout(() => {
+      try { if (global.Safety) global.Safety.check(); } catch (e) { /* 忽略 */ }
+    }, 3000);
 
     // 返回键
     window.addEventListener('popstate', () => {

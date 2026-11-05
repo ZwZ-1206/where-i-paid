@@ -2,4 +2,26 @@
 <resources>
     <!-- 英文系统显示 Where I Paid；中文系统仍显示「花哪儿了」（见 values/strings.xml） -->
     <string name="app_name">Where I Paid</string>
+
+    <!-- App widget -->
+    <string name="widget_label_compact">Where I Paid · mini</string>
+    <string name="widget_label_standard">Where I Paid · standard</string>
+    <string name="widget_label_large">Where I Paid · large</string>
+    <string name="widget_desc_compact">2×1 one line: icon, today total, add button</string>
+    <string name="widget_desc_standard">4×2: today total, month and budget</string>
+    <string name="widget_desc_large">4×3: period budget, recent items, 7-day bars</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_today_short">Today</string>
+    <string name="widget_budget_desc">Budget progress</string>
+    <string name="widget_period">This period</string>
+    <string name="widget_add">Add</string>
+    <string name="widget_report">Report</string>
+    <string name="widget_refresh">Refresh</string>
+    <string name="widget_empty">No data yet — open the app to add one</string>
+    <string name="widget_not_synced">Open the app to refresh today</string>
+    <string name="widget_today_none">Nothing logged today</string>
+    <string name="widget_not_synced_short">Open the app</string>
+    <string name="widget_chart_desc">Bar chart of the last 7 days</string>
+    <string name="widget_no_budget">No budget set</string>
+    <string name="widget_placeholder">--</string>
 </resources>

@@ -7,4 +7,15 @@
     <color name="bg">#F4F6FB</color>
     <color name="ic_launcher_background_start">#5B8CFF</color>
     <color name="ic_launcher_background_end">#A56CFF</color>
+
+    <!-- 桌面小组件：固定浅色卡片（为什么不用深色跟随，见 widget_card.xml 注释） -->
+    <color name="widget_card_bg">#FFFFFF</color>
+    <color name="widget_line">#EAECF2</color>
+    <color name="widget_text">#11131A</color>
+    <color name="widget_text_2">#4B5261</color>
+    <color name="widget_sub">#8A93A6</color>
+    <color name="widget_track">#EDEFF5</color>
+    <color name="widget_pill_bg">#F2F4F9</color>
+    <!-- 支出：花钱这件事用偏红的色系，和网页端 app.css 的 expense 变量同族 -->
+    <color name="widget_expense">#F2564B</color>
 </resources>

@@ -4,6 +4,16 @@
     <!-- 资源全部打包在应用内，这条是为阶段二热更 / 双人同步预留 -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- App 内更新：把下载好的安装包交给系统安装器。
+         Android 8+ 还要求用户在「设置 → 应用 → 允许安装未知应用」里给本 App 授权，
+         代码里会先检查再引导（见 UpdateInstaller.canInstall）。 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- 只有老系统（API 28 及以下）往公共 Downloads 写文件才需要；
+         minSdk 24 所以留着并限定 maxSdkVersion，新系统上自动忽略。 -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -24,5 +34,78 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 把公共 Downloads 里的安装包包装成 content:// 给安装器读。
+             授权串用 ${applicationId} 占位符，debug 包自动变成 .debug.fileprovider，
+             和代码里 context.packageName + ".fileprovider" 永远一致。 -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- 桌面小组件 —— 三个 receiver = 桌面「添加小组件」里的三条尺寸入口。
+             为什么必须是三个：一个 appwidget-provider 元信息在桌面里只有一条入口，
+             而 MIUI / ColorOS 这类桌面多数不支持长按缩放，只注册一个的话用户
+             就只有一种大小可选。三个 receiver 指向同一个基类的三个空壳子类，
+             逻辑不重复（见 widget/BillWidgetProvider.kt）。
+
+             exported="false" 没问题：拉起/更新小组件的是系统 AppWidgetService，
+             它发的是**显式** Intent（直接点明 ComponentName），非导出接收器收得到；
+             而第三方 App 伪造的 APPWIDGET_UPDATE 会被忽略。
+
+             ★ 布局约束见 widget_bill.xml 头部注释：桌面进程有 View 类白名单，
+               裸 <View>/<Space> 会让整个部件变成「载入窗口小部件时出现问题」。 -->
+        <receiver
+            android:name=".widget.BillWidgetCompactProvider"
+            android:exported="false"
+            android:label="@string/widget_label_compact">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_compact" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.BillWidgetStandardProvider"
+            android:exported="false"
+            android:label="@string/widget_label_standard">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_standard" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.BillWidgetLargeProvider"
+            android:exported="false"
+            android:label="@string/widget_label_large">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info_large" />
+        </receiver>
+
+        <!-- 下载完成 → 验货 → 发我们自己的安装通知。
+             DOWNLOAD_COMPLETE 是系统广播，系统（uid < 10000）发给非导出接收器是放行的，
+             别的 App 伪造这个广播也进不来（exported=false），进来也无害——
+             只认 SharedPreferences 里我们自己记下的下载 id。 -->
+        <receiver
+            android:name=".UpdateInstaller$CompleteReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.DOWNLOAD_COMPLETE" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

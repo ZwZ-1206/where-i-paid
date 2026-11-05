@@ -72,6 +72,7 @@ _tools/push-github-api.js
 
 # 内部技能包
 huanaer-release.skill.zip
+skills/
 
 # 官网里内嵌的 App（build-site.js 生成）
 site/app/

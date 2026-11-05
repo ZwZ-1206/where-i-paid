@@ -72,6 +72,20 @@
     nickname: '',
     seeded: false,
     createdAt: null,
+    // 数据安全：主屏安装引导 + 定期备份提醒。
+    // 为什么存在：iOS Safari 会删除「7 个使用日无交互」网站的脚本可写存储
+    // （localStorage 就在其中）——账目只存在本机，被清就是真丢。
+    // 唯一可靠豁免是把网页添加到主屏幕（WebKit 官方明确主屏 App 不在 ITP 范围内）。
+    // 导出备份是最后的兜底，所以隔一段时间提醒一次。
+    install: {
+      done: false,          // 用户点过「不再提醒」
+      promptedAt: 0,        // 上次自动弹出引导的时间
+    },
+    backup: {
+      remind: true,         // 定期备份提醒总开关
+      lastExportAt: 0,      // 上次导出 JSON 备份的时间
+      lastRemindAt: 0,      // 上次提醒的时间（提醒过就顺延一个周期，别天天烦人）
+    },
   };
 
   let state = null;

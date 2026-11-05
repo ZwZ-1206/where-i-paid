@@ -5,7 +5,7 @@
  *       已改为网络优先。 */
 'use strict';
 
-const CACHE = 'jizhang-v1.18.14';
+const CACHE = 'jizhang-v1.20.1';
 
 const ASSETS = [
   './',
@@ -17,6 +17,7 @@ const ASSETS = [
   './assets/js/utils.js',
   './assets/js/charts.js',
   './assets/js/store.js',
+  './assets/js/widget.js',
   './assets/js/ui.js',
   './assets/js/ai.js',
   './assets/js/ocr.js',
@@ -34,6 +35,7 @@ const ASSETS = [
   './assets/js/view-settings.js',
   './assets/js/view-sync.js',
   './assets/js/view-couple.js',
+  './assets/js/safety.js',
   './assets/js/app.js',
   './assets/couple/tongcheng.jpg',
   './assets/couple/yidi.jpg',
@@ -86,11 +88,38 @@ function fetchNav(req) {
       if (ct.indexOf('text/html') < 0) return null;
       return res.clone().text().then((body) => {
         if (body.indexOf(APP_MARK) < 0) return null;   // 不是我们的页面
+        if (isRedirected(res)) return rebuildFrom(body, res.headers);   // Safari 兼容
         return res;
       });
     })
     .catch(() => null)
     .then((r) => { if (timer) clearTimeout(timer); return r; });
+}
+
+// —— Safari 兼容：跟随重定向拿到的响应，必须「还原」后才能交给页面 ————————
+// Safari 对 Service Worker 交出的响应有洁癖：只要这个响应是 fetch 自动跟随
+// 301/308 得来的（res.redirected === true），它就整页报错
+// 「Response served by service worker has redirections」，直接白屏；
+// Chrome / Edge 只在控制台警告一句，照样显示——所以这个坑只在 iPhone 上现形。
+// 本站部署在 Cloudflare Pages，访问 /app（漏了结尾斜杠）会被 308 跳到 /app/，
+// 用户手打网址、旧书签、旧分享链接都会踩中。
+// 更阴的是：这种响应一旦被 caches.put 存进缓存，以后每次从缓存命中照样炸，
+// 清缓存才能好——所以缓存里也绝对不能存重定向响应。
+// 办法：用已经读到的原文重建一个 status 200 的普通响应，
+// 重定向痕迹一并去掉，再返回、再入缓存。
+function isRedirected(res) {
+  return !!res && (res.redirected === true || res.type === 'opaqueredirect' || (res.status >= 300 && res.status < 400));
+}
+
+function rebuildFrom(body, headers) {
+  const h = new Headers();
+  headers.forEach((v, k) => {
+    const lk = k.toLowerCase();
+    // 原文重建，这两个头会说谎（原文是解压后的），必须丢掉
+    if (lk === 'content-length' || lk === 'content-encoding') return;
+    h.set(k, v);
+  });
+  return new Response(body, { status: 200, statusText: 'OK', headers: h });
 }
 
 function offlinePage() {
@@ -146,6 +175,15 @@ self.addEventListener('fetch', (event) => {
       fetch(req)
         .then((res) => {
           if (res && res.status === 200 && res.type === 'basic') {
+            if (isRedirected(res)) {
+              // 跟随重定向拿到的：还原成普通 200，再入缓存、再返回（Safari 兼容）
+              return res.text().then((body) => {
+                const clean = rebuildFrom(body, res.headers);
+                const copy = clean.clone();
+                caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+                return clean;
+              });
+            }
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
           }
@@ -161,10 +199,13 @@ self.addEventListener('fetch', (event) => {
     fromCache().then((cached) => {
       if (cached) return cached;
       return fetch(req).then((res) => {
-        if (res && res.status === 200 && res.type === 'basic') {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
+        if (!res || res.status !== 200 || res.type !== 'basic') return res;
+        if (isRedirected(res)) {
+          // 重定向响应不入缓存（会毒化缓存），还原后直接返回（Safari 兼容）
+          return res.text().then((body) => rebuildFrom(body, res.headers));
         }
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
         return res;
       });
     })

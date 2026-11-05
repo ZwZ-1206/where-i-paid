@@ -2,12 +2,11 @@ package com.whereipaid.app
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.DownloadManager
-import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
@@ -18,12 +17,13 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
-import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import com.whereipaid.app.widget.BillWidgetProvider
+import com.whereipaid.app.widget.WidgetStore
 
 /**
  * 花哪儿了 · 安卓壳
@@ -40,6 +40,10 @@ import androidx.webkit.WebViewClientCompat
 class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
+
+    /** 网页第一次加载完成之前，evaluateJavascript 打过去是没人接的 —— 先把要跳的页面存着 */
+    private var pendingRoute: String? = null
+    private var pageLoaded = false
 
     /** 正在等用户选文件的回调；选完/取消都要回一次，否则下次点击没反应 */
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
@@ -110,12 +114,25 @@ class MainActivity : AppCompatActivity() {
             // 页面侧用法见 app.js 的 openApkDownload()：有 JZApp 就用它，没有就退回 location.href，
             // 所以老版本 App 和网页版都不受影响。
             addJavascriptInterface(UpdateBridge(), "JZApp")
+            // 桌面小组件的数据桥：网页把聚合好的快照交给原生，见 widget/WidgetStore.kt
+            addJavascriptInterface(WidgetBridge(), "JZWidget")
 
             webViewClient = object : WebViewClientCompat() {
                 override fun shouldInterceptRequest(
                     view: WebView,
                     request: WebResourceRequest
                 ): WebResourceResponse? = loader.shouldInterceptRequest(request.url)
+
+                override fun onPageFinished(view: WebView, url: String) {
+                    pageLoaded = true
+                    val route = pendingRoute
+                    if (!route.isNullOrBlank()) {
+                        pendingRoute = null
+                        // 晚一点点：App.js 的 boot() 在 DOMContentLoaded 才跑，
+                        // 过早 evaluate 会是「对象已经存在、页面还没渲染」的空操作
+                        view.postDelayed({ applyRoute(route) }, 400)
+                    }
+                }
 
                 // 站外链接（反馈邮箱、官网）交给系统浏览器，不在壳里打转
                 override fun shouldOverrideUrlLoading(
@@ -163,6 +180,9 @@ class MainActivity : AppCompatActivity() {
 
         setContentView(web)
 
+        // 小组件带着「记一笔」进来时：热启动（singleTask）走这条，冷启动走上面 onPageFinished
+        pendingRoute = intent?.getStringExtra(EXTRA_ROUTE)?.takeIf { it.isNotBlank() }
+
         if (savedInstanceState == null) {
             web.loadUrl(START_URL)
         } else {
@@ -175,6 +195,54 @@ class MainActivity : AppCompatActivity() {
                 if (web.canGoBack()) web.goBack() else finish()
             }
         })
+    }
+
+    /**
+     * 小组件点了卡片上的按钮：把 App 拉到前台并直接落到那一页。
+     * 注意 App 已经是 singleTask，系统会复用这个实例，所以这里一定能收到；
+     * 页面还没起来的那份会留在 pendingRoute 里，由 onPageFinished 补。
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val route = intent.getStringExtra(EXTRA_ROUTE)
+        if (route.isNullOrBlank()) return
+        if (pageLoaded) applyRoute(route) else pendingRoute = route
+    }
+
+    /** 把页面切到 route（add / report …）。只调 JS，不整页 reload —— reload 会先白一屏 */
+    private fun applyRoute(route: String) {
+        val safe = route.replace(Regex("[^A-Za-z0-9_-]"), "")
+        if (safe.isEmpty()) return
+        val js = "(function(){try{" +
+            "if(window.Widget&&window.Widget.handleRoute){window.Widget.handleRoute('$safe');return;}" +
+            "if(window.App&&window.App.go){window.App.go('$safe');}" +
+            "}catch(e){}})()"
+        web.evaluateJavascript(js, null)
+    }
+
+    // ------------------------------------------------------------
+    // 桌面小组件：网页 → 原生的数据桥
+    // ------------------------------------------------------------
+    /**
+     * 网页侧用法见 assets/js/widget.js。
+     * 这里只做「落盘 + 通知桌面重画」两件事，**不做任何金额计算**：
+     * 账目的口径（周期怎么切、退款怎么抵、红包算谁的）全在网页侧，
+     * 原生再算一遍必然和 App 里看到的数对不上，那是最难查的一类 bug。
+     */
+    inner class WidgetBridge {
+        /** @return 是否存下来了（false = 格式不对，网页侧会降级为「不推」） */
+        @JavascriptInterface
+        fun postSnapshot(json: String?): Boolean {
+            val app = applicationContext
+            val ok = WidgetStore.save(app, json)
+            if (ok) runOnUiThread { BillWidgetProvider.updateAll(app) }
+            return ok
+        }
+
+        /** 网页想知道「本机有没有已经存过的快照」（没数据就不必推） */
+        @JavascriptInterface
+        fun hasSnapshot(): Boolean = WidgetStore.hasSnapshot(applicationContext)
     }
 
     private fun openExternally(url: Uri): Boolean = try {
@@ -199,7 +267,7 @@ class MainActivity : AppCompatActivity() {
                 Log.w("Huanaer", "拒绝下载非官方安装包: $url")
                 return
             }
-            runOnUiThread { startApkDownload(url) }
+            runOnUiThread { downloadWithNotifyPermission(url) }
         }
 
         /** 页面想知道自己装在哪个版本里时可以问（目前用包内 sw.js，不用这个） */
@@ -207,25 +275,30 @@ class MainActivity : AppCompatActivity() {
         fun versionName(): String = BuildConfig.VERSION_NAME
     }
 
-    private fun startApkDownload(url: String) {
-        try {
-            val dm = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            val name = url.substringAfterLast('/')
-            val req = DownloadManager.Request(Uri.parse(url))
-                .setTitle("花哪儿了 $name")
-                .setDescription("正在下载新版本，完成后点通知安装")
-                // 下载完成的系统通知本身就能点开安装，所以这里不额外做 BroadcastReceiver
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                // 应用私有目录：不需要任何存储权限（minSdk 24 也能用）
-                .setDestinationInExternalFilesDir(this, Environment.DIRECTORY_DOWNLOADS, name)
-                .setMimeType("application/vnd.android.package-archive")
-            dm.enqueue(req)
-            Toast.makeText(this, "开始下载，完成后在通知栏点一下安装", Toast.LENGTH_LONG).show()
-        } catch (e: Exception) {
-            // 下载器不可用（极少数 ROM 会禁）→ 退回浏览器，不能让人卡在「点了没反应」
-            Log.w("Huanaer", "应用内下载失败，改用浏览器", e)
-            openExternally(Uri.parse(url))
+    /**
+     * Android 13+ 没有 POST_NOTIFICATIONS 授权时，通知会被系统静默丢弃，
+     * 用户就永远等不到「点通知安装」。所以下载前先要权限：给，就走 App 内
+     * 下载；不给，退回系统浏览器（浏览器有自己的通知链路）。
+     */
+    private val notifyPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val url = pendingDownloadUrl
+        pendingDownloadUrl = null
+        if (url == null) return@registerForActivityResult
+        if (granted) UpdateInstaller.startDownload(this, url)
+        else openExternally(Uri.parse(url))
+    }
+
+    private var pendingDownloadUrl: String? = null
+
+    private fun downloadWithNotifyPermission(url: String) {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingDownloadUrl = url
+            notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            return
         }
+        UpdateInstaller.startDownload(this, url)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -241,6 +314,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // 用户刚从系统设置里开「允许安装未知应用」回来：把验完货的下载补发成安装通知
+        UpdateInstaller.resumePending(this)
         web.resumeTimers()
         web.onResume()
     }
@@ -251,6 +326,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        /** 小组件 / 通知带来的落地页键；值取自 App.VIEWS 的键（add / report …） */
+        const val EXTRA_ROUTE = "route"
         /** 虚拟源域名，写死为常量。第一个正式版之后就不要再动它。 */
         private const val ASSET_HOST = "appassets.androidplatform.net"
         private const val START_URL = "https://$ASSET_HOST/assets/www/index.html"

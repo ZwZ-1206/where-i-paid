@@ -2,4 +2,26 @@
 <resources>
     <!-- 中文系统显示的名字；英文系统见 values-en/strings.xml -->
     <string name="app_name">花哪儿了</string>
+
+    <!-- 桌面小组件 -->
+    <string name="widget_label_compact">花哪儿了 · 迷你</string>
+    <string name="widget_label_standard">花哪儿了 · 标准</string>
+    <string name="widget_label_large">花哪儿了 · 大号</string>
+    <string name="widget_desc_compact">2×1 一行：图标 + 今日金额 + 记一笔</string>
+    <string name="widget_desc_standard">4×2：今日金额、当月进度与预算</string>
+    <string name="widget_desc_large">4×3：周期预算、最近几笔与近 7 天柱图</string>
+    <string name="widget_today">今日支出</string>
+    <string name="widget_today_short">今日</string>
+    <string name="widget_budget_desc">预算使用进度</string>
+    <string name="widget_period">本期支出</string>
+    <string name="widget_add">记一笔</string>
+    <string name="widget_report">总结</string>
+    <string name="widget_refresh">刷新</string>
+    <string name="widget_empty">还没有数据，打开 App 记一笔</string>
+    <string name="widget_not_synced">打开 App 更新今天的数字</string>
+    <string name="widget_today_none">今天还没记账</string>
+    <string name="widget_not_synced_short">打开 App 更新</string>
+    <string name="widget_chart_desc">近 7 天支出柱状图</string>
+    <string name="widget_no_budget">还没有设预算</string>
+    <string name="widget_placeholder">--</string>
 </resources>

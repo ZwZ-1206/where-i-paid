@@ -1,0 +1,321 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  标准 / 大号小组件（4×2 及以上）。
+
+  ★ 兼容性约束（照另一份 OEM 桌面排障手册执行，别改回去）：
+    1. 这份布局**不在 App 进程 inflate，而是在桌面进程 inflate**，
+       桌面有一份 View 类白名单。裸 <View> / <Space> 不在白名单内，
+       会抛 "Class not allowed to be inflated android.view.View"，
+       整个部件变成桌面的「载入窗口小部件时出现问题」占位图 ——
+       这个异常发生在桌面进程，App 侧 try/catch 永远抓不到。
+       → 撑条/分隔线一律用 <ImageView>（给 weight 就能当撑条），本文件里没有裸 View。
+    2. 只使用官方清单里的控件：LinearLayout / TextView / ImageView。
+       预算进度条原本是 ProgressBar，因 OEM 白名单边缘 + 依赖主题属性
+       （?android:attr/progressBarStyleHorizontal）已改为 ImageView + 代码画位图。
+    3. 不使用任何 ?attr/ 主题属性，不使用 previewLayout。
+    4. 纵向高度是算过的：按「一格 = 70n-30 dp」，4×2 只有 110dp。
+       头部+今日+金额+副标题 ≈ 100dp 是上限，其余段落由代码按高度开
+       （周期 h≥150、柱图 h≥215、最近三笔 h≥250），绝不允许溢出被裁。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@drawable/widget_card"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingStart="13dp"
+    android:paddingEnd="13dp"
+    android:paddingTop="9dp"
+    android:paddingBottom="9dp">
+
+    <!-- 头部：名字 + 记一笔 + 刷新。
+         操作放在头部而不是底部，是为了让 4×2（110dp）也能放下「记一笔」——
+         底部再来一行操作会顶到 130dp 以上，小尺寸必然被裁。 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="26dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/w_app_name"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/app_name"
+            android:textColor="@color/widget_text"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <LinearLayout
+            android:id="@+id/w_btn_add"
+            android:layout_width="wrap_content"
+            android:layout_height="26dp"
+            android:layout_marginEnd="6dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="11dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:background="@drawable/widget_pill_brand">
+
+            <ImageView
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:src="@drawable/ic_widget_plus"
+                android:contentDescription="@string/widget_add" />
+
+            <TextView
+                android:id="@+id/w_add_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="@string/widget_add"
+                android:textColor="#FFFFFF"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/w_btn_refresh"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_widget_refresh"
+            android:contentDescription="@string/widget_refresh"
+            android:clickable="true"
+            android:background="@drawable/widget_circle_btn" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/w_today_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:text="@string/widget_today"
+        android:textColor="@color/widget_sub"
+        android:textSize="11sp"
+        android:singleLine="true" />
+
+    <TextView
+        android:id="@+id/w_today"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/widget_placeholder"
+        android:textColor="@color/widget_text"
+        android:textSize="23sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/w_today_sub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="1dp"
+        android:text="@string/widget_placeholder"
+        android:textColor="@color/widget_sub"
+        android:textSize="12sp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <!-- 周期 + 预算：代码按高度/宽度决定显不显示（默认 GONE） -->
+    <LinearLayout
+        android:id="@+id/w_period_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/w_period_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/widget_period"
+                android:textColor="@color/widget_sub"
+                android:textSize="11sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/w_period_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_text"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <!-- 预算进度：ImageView + 代码画的位图。原来是 ProgressBar，
+             白名单边缘且要用主题属性，OEM 桌面上风险太高。 -->
+        <ImageView
+            android:id="@+id/w_progress"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="4dp"
+            android:scaleType="fitXY"
+            android:contentDescription="@string/widget_budget_desc" />
+
+        <TextView
+            android:id="@+id/w_budget_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="@string/widget_placeholder"
+            android:textColor="@color/widget_sub"
+            android:textSize="11sp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+    </LinearLayout>
+
+    <!-- 最近三笔（代码按高度决定） -->
+    <LinearLayout
+        android:id="@+id/w_recent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/w_r1_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="3dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/w_r1_icon"
+                android:layout_width="18dp"
+                android:layout_height="wrap_content"
+                android:text="💰"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_r1_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_text_2"
+                android:textSize="11sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/w_r1_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_expense"
+                android:textSize="11sp"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_r2_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="3dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/w_r2_icon"
+                android:layout_width="18dp"
+                android:layout_height="wrap_content"
+                android:text="💰"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_r2_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_text_2"
+                android:textSize="11sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/w_r2_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_expense"
+                android:textSize="11sp"
+                android:singleLine="true" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/w_r3_row"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/w_r3_icon"
+                android:layout_width="18dp"
+                android:layout_height="wrap_content"
+                android:text="💰"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/w_r3_title"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_text_2"
+                android:textSize="11sp"
+                android:singleLine="true"
+                android:ellipsize="end" />
+
+            <TextView
+                android:id="@+id/w_r3_amount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="5dp"
+                android:text="@string/widget_placeholder"
+                android:textColor="@color/widget_expense"
+                android:textSize="11sp"
+                android:singleLine="true" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 近 7 天柱图（代码按高度决定）：RemoteViews 画不了自定义 View，
+         但可以贴一张 Canvas 画好的位图 -->
+    <ImageView
+        android:id="@+id/w_chart"
+        android:layout_width="match_parent"
+        android:layout_height="38dp"
+        android:layout_marginTop="8dp"
+        android:scaleType="fitXY"
+        android:visibility="gone"
+        android:contentDescription="@string/widget_chart_desc" />
+</LinearLayout>

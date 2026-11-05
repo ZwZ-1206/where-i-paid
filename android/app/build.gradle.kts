@@ -23,8 +23,8 @@ android {
         // 目标 SDK 固定 34：35+ 会强制 edge-to-edge，页面会被状态栏盖住，
         // 对一个「网页壳」来说收益为零、风险很大。侧载分发不看 Play 的 targetSdk 要求。
         targetSdk = 34
-        versionCode = 11814
-        versionName = "1.18.14"
+        versionCode = 12001
+        versionName = "1.20.1"
     }
 
     signingConfigs {

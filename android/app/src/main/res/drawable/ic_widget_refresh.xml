@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 颜色直接写死：ImageView 的 android:tint 到 API 21 才稳定可用，
+         而 RemoteViews 里拿不到 app:tint，别给自己找麻烦。 -->
+    <path
+        android:fillColor="#8A93A6"
+        android:pathData="M12,4V1L8,5l4,4V6a6,6 0 0,1 5.2,8.99l1.42,1.42A8,8 0 0,0 12,4zM12,18a6,6 0 0,1 -5.2,-8.99L5.38,7.59A8,8 0 0,0 12,20v3l4,-4 -4,-4v3z" />
+</vector>

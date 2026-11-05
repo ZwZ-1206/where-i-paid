@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FileProvider 的目录映射：只放开公共 Downloads 一个目录。
+
+  为什么需要它：下载完成的安装包在 /sdcard/Download/ 下，安装器是另一个进程，
+  必须靠 content:// URI 才能读（直接给 file:// 在 Android 7+ 会抛
+  FileUriExposedException）。这里只映射 Download/，别的一律不给，最小暴露面。
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <external-path name="downloads" path="Download/" />
+</paths>

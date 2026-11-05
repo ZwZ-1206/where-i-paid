@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  迷你小组件（2×1，110×40dp）。
+
+  ★ 兼容性约束（同 widget_bill.xml，逐条都要守住）：
+    1. 布局在**桌面进程** inflate，有 View 类白名单：裸 <View>/<Space> 会直接
+       抛 "Class not allowed to be inflated"，整个部件变成桌面的错误占位图，
+       这个异常 App 侧 try/catch 抓不到。这里的「撑条」改用中间那个
+       TextView 的 weight=1，不用裸 View。
+    2. 只用 LinearLayout / TextView / ImageView，不用主题属性，不用 previewLayout。
+    3. 2×1 只有 40dp 高：padding 5+5，内容最高 26dp —— 只放一行，
+       再塞第二行就会被桌面的格子裁掉。
+
+  这一档的意义：能塞在时钟、天气旁边那条窄缝里，一眼看到今天花了多少。
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wc_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:background="@drawable/widget_card"
+    android:clickable="true"
+    android:focusable="true"
+    android:paddingStart="10dp"
+    android:paddingEnd="10dp"
+    android:paddingTop="5dp"
+    android:paddingBottom="5dp">
+
+    <ImageView
+        android:id="@+id/wc_icon"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@mipmap/ic_launcher"
+        android:contentDescription="@string/app_name" />
+
+    <!-- 吃掉剩余宽度：金额再长也只截断自己，不会把「记一笔」挤出格子 -->
+    <TextView
+        android:id="@+id/wc_amount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:text="@string/widget_placeholder"
+        android:textColor="@color/widget_text"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:ellipsize="end" />
+
+    <TextView
+        android:id="@+id/wc_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:text="@string/widget_today_short"
+        android:textColor="@color/widget_sub"
+        android:textSize="10sp"
+        android:includeFontPadding="false"
+        android:singleLine="true"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/wc_btn_add"
+        android:layout_width="wrap_content"
+        android:layout_height="24dp"
+        android:layout_marginStart="6dp"
+        android:paddingStart="9dp"
+        android:paddingEnd="9dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:clickable="true"
+        android:background="@drawable/widget_pill_brand">
+
+        <ImageView
+            android:layout_width="11dp"
+            android:layout_height="11dp"
+            android:src="@drawable/ic_widget_plus"
+            android:contentDescription="@string/widget_add" />
+
+        <TextView
+            android:id="@+id/wc_add_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/widget_add"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:singleLine="true"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

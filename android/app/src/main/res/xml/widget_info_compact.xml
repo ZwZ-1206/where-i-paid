@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  迷你档：2×1。
+
+  尺寸按官方网格公式「格数 n → 70n − 30 dp」：2 格 = 110dp，1 格 = 40dp。
+  为什么不再共用一份元信息：一个 appwidget-provider 元信息在桌面里就是**一条入口**，
+  国产 ROM（MIUI / ColorOS / OneUI）大多不支持长按缩放，用户只能在添加时选尺寸。
+  想要「多个尺寸可选」，就必须注册多个 receiver —— 见 AndroidManifest 里的
+  .widget.BillWidgetCompactProvider / Standard / Large（同一个基类，三个壳）。
+
+  没有 previewImage / previewLayout：选择器里用系统默认（App 图标）。
+  previewLayout 会在系统界面进程里再 inflate 一次布局，等于多一个白名单雷。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="40dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="400dp"
+    android:maxResizeHeight="110dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_bill_compact"
+    android:description="@string/widget_desc_compact"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

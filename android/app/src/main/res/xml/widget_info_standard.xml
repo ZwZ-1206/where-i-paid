@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  标准档：4×2（250×110dp，公式 70n − 30）。这是拖进来时的默认尺寸。
+
+  高度预算（改布局前先算）：
+    padding 18 + 头部 26 + 今日小标题 14 + 金额（23sp）29 + 副标题 15 ≈ 102dp
+  —— 刚好落在 110dp 里。周期/预算（h≥150）、柱图（h≥215）、最近三笔（h≥250）
+  由代码按实际高度再开，绝不溢出被裁。
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="40dp"
+    android:maxResizeWidth="460dp"
+    android:maxResizeHeight="260dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="1800000"
+    android:initialLayout="@layout/widget_bill"
+    android:description="@string/widget_desc_standard"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

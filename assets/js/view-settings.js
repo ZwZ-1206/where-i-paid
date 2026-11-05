@@ -38,6 +38,34 @@
     const p = S.currentPeriod();
     const totalTx = S.state.tx.length;
 
+    // 数据安全：主屏安装状态 + 备份记录（账目只存本机，这两件事是保命符）
+    const fmtShort = (ts) => { const d = new Date(ts); return (d.getMonth() + 1) + '月' + d.getDate() + '日'; };
+    const installOn = !!(global.Safety && global.Safety.isStandalone());
+    const installCfg = st.install || {};
+    const installDesc = installOn
+      ? '已添加到主屏幕 · 数据不受「7 个使用日不用就清」影响'
+      : (installCfg.done ? '引导已关 · 点这里看怎么加' : 'Safari 标签页连续 7 个使用日不打开，iOS 可能自动清掉账目');
+    const backupCfg = st.backup || {};
+    const backupRemindOn = backupCfg.remind !== false;
+    const lastExportAt = backupCfg.lastExportAt || 0;
+    const backupDesc = backupRemindOn
+      ? (lastExportAt ? '超过两周没导出会提醒你' : '还没导出过，超过两周会提醒你')
+      : '已关闭 · 建议至少每月手动导一次';
+    const exportDesc = lastExportAt
+      ? '上次导出 ' + fmtShort(lastExportAt) + (backupRemindOn ? '' : ' · 提醒已关')
+      : 'JSON 完整备份，换手机不丢数据';
+
+    // 桌面小组件：只有安卓 APK 里注入了 JZWidget 桥时才存在这个能力，
+    // 网页版 / iOS 上不说这回事 —— 露出一个点不开的入口是最糟的体验。
+    const widgetSupported = !!(global.Widget && global.Widget.supported());
+    const widgetRow = widgetSupported ? `
+          <button class="set-row" data-act="widget" type="button">
+            <span class="set-ic">🧩</span>
+            <span class="set-main"><span class="set-name">桌面小组件</span>
+              <span class="set-desc">长按桌面空白 → 小组件 · 不用打开 App 也能看今天花了多少</span></span>
+            <span class="set-val">${Icons.svg('chevronRight', 16)}</span>
+          </button>` : '';
+
     const bookCount = S.books().length;
     const activeBookName = (S.activeBook() || {}).name || '日常';
     const cc = S.catConfig();
@@ -261,12 +289,33 @@
       </div>
 
       <div class="set-group">
+        <div class="set-group-title">数据安全</div>
+        <div class="set-card">
+          <button class="set-row" data-act="install" type="button">
+            <span class="set-ic">📲</span>
+            <span class="set-main"><span class="set-name">添加到主屏幕</span>
+              <span class="set-desc">${installDesc}</span></span>
+            <span class="set-val">${Icons.svg('chevronRight', 16)}</span>
+          </button>
+          ${widgetRow}
+          <div class="set-row" style="cursor:default">
+            <span class="set-ic">${Icons.svg('download', 16)}</span>
+            <span class="set-main"><span class="set-name">定期备份提醒</span>
+              <span class="set-desc">${backupDesc}</span></span>
+            <span class="set-val">
+              <span class="switch ${backupRemindOn ? 'on' : ''}" data-toggle="backupRemind"></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="set-group">
         <div class="set-group-title">数据</div>
         <div class="set-card">
           <button class="set-row" data-act="backup" type="button">
             <span class="set-ic">${Icons.svg('download', 16)}</span>
             <span class="set-main"><span class="set-name">导出备份</span>
-              <span class="set-desc">JSON 完整备份，换手机不丢数据</span></span>
+              <span class="set-desc">${exportDesc}</span></span>
             <span class="set-val">${Icons.svg('chevronRight', 16)}</span>
           </button>
           <button class="set-row" data-act="restore" type="button">
@@ -330,7 +379,15 @@
         else if (act === 'scan') openScanSheet();
         else if (act === 'nickname') openNicknameSheet();
         else if (act === 'backup') doBackup();
+        else if (act === 'install') {
+          if (global.Safety) global.Safety.showInstallSheet();
+          else U.toast('iOS：分享 → 添加到主屏幕；安卓：浏览器菜单 → 添加到主屏幕', 'info');
+        }
         else if (act === 'restore') doRestore();
+        else if (act === 'widget') {
+          if (global.Widget) global.Widget.showGuide();
+          else U.toast('桌面小组件只有安卓版支持', 'info');
+        }
         else if (act === 'bill') { if (global.Bills) global.Bills.open(); else U.toast('账单模块未加载', 'error'); }
         else if (act === 'books') openBooksSheet();
         else if (act === 'cats') openCatsSheet();
@@ -391,6 +448,14 @@
           S.setSettings({ wish: { enabled: on } });
           render(root);
           U.toast(on ? '已开启想买清单' : '已关闭，记账页不再显示「想买先放着」', on ? 'success' : 'info');
+          return;
+        }
+        if (which === 'backupRemind') {
+          const cfg = S.settings.backup || {};
+          const on = cfg.remind === false;
+          S.setSettings({ backup: { remind: on } });
+          render(root);
+          U.toast(on ? '已开启备份提醒（超过两周没导出会提醒）' : '已关闭备份提醒', on ? 'success' : 'info');
           return;
         }
         const on = !S.settings.alert.enabled;
@@ -2290,6 +2355,8 @@
   // ------------------------------------------------------------
   function doBackup() {
     App.download('花哪儿了备份-' + U.ymd(new Date()) + '.json', S.exportJSON(), 'application/json');
+    // 记下导出时间：备份提醒按它算周期，设置页也显示「上次导出」
+    S.setSettings({ backup: { lastExportAt: Date.now() } });
     U.toast('备份已导出', 'success');
   }
 
